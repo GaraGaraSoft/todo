@@ -47,6 +47,13 @@
 				break;
 			}
 		}
+		int year = Integer.parseInt(pbean.getDate().substring(0,4));
+		int month = Integer.parseInt(pbean.getDate().substring(5,7));
+		int day = Integer.parseInt(pbean.getDate().substring(8,10));
+		request.setAttribute("year",year);
+		request.setAttribute("month",month);
+		request.setAttribute("day", day);
+		
  }
  request.setAttribute("pbean",pbean);
  
@@ -55,13 +62,14 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>目標、スケジュールの編集・削除</title>
+<title>目標、スケジュールの編集</title>
 </head>
 <body>
-<h1>目標、スケジュールの編集・削除</h1><p/>
+<h1>目標、スケジュールの編集</h1><p/>
 <!-- 目標の編集・削除 -->
 <form action="/ToDo/EditController" method="post" name="eform">
 <input type="hidden" name="id" value="${ id }">
+<input type="hidden" name="action" value="edi">
 <table border=1 id="inp">
 <tr>
 <th>目標</th>
@@ -136,17 +144,17 @@
 </c:when>
 <c:when test="${ level=='sche' }">
 <select name="year" id="tt1">
-<c:forEach var="ye" begin="${ pbean.year-3 }" end="${ pbean.year+3 }" step="1">
-<option <c:if test="${pbean.year == ye}"> selected </c:if>><c:out value="${ ye }"/></option>
+<c:forEach var="ye" begin="${ year-3 }" end="${ year+3 }" step="1">
+<option <c:if test="${year == ye}"> selected </c:if>><c:out value="${ ye }"/></option>
 </c:forEach>
 </select>
 <select name="month" id="tt2">
 <c:forEach var="mo" begin="1" end="12" step="1">
-<option <c:if test="${pbean.month == mo}"> selected </c:if>><c:out value="${ mo }"/></option>
+<option <c:if test="${month == mo}"> selected </c:if>><c:out value="${ mo }"/></option>
 </c:forEach></select>
 <select name="day" id="tt3">
 <c:forEach var="da" begin="1" end="31" step="1">
-<option <c:if test="${pbean.day == da}"> selected </c:if>><c:out value="${ da }"/></option>
+<option <c:if test="${day == da}"> selected </c:if>><c:out value="${ da }"/></option>
 </c:forEach></select>
 </c:when>
 </c:choose>
@@ -154,8 +162,8 @@
 </td>
 </tr>
 <tr><td colspan="2">
-<button type='submit' name='action' value='edi'>変更</button>
-<button type='submit' name='action' value='del'>削除</button>
+<input type="submit" value="編集完了"/>
+<input type="reset" value="やり直し"/>
 </td></tr>
 </table>
 </form>

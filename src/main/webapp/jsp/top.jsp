@@ -3,7 +3,10 @@
     <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
     <%@ page import="java.util.Calendar" %>
     <%@ page import="java.util.ArrayList" %>
+    <%@ page import="java.util.List" %>
     <%@ page import="todo.PlanBean" %>
+    <%@ page import="todo.LogBean" %>
+    <%@ page import="java.util.Collections" %>
     <%  Calendar cal = Calendar.getInstance();
     int y = cal.get(Calendar.YEAR);
     int m = cal.get(Calendar.MONTH)+1;
@@ -26,6 +29,20 @@
     	
     	}
     }
+	@SuppressWarnings("unchecked")
+	List<LogBean> logs = (ArrayList<LogBean>) session.getAttribute("logarray");
+	
+	if(logs.size()!=0 && logs.get(0).getLogid()<logs.get(logs.size()-1).getLogid()){
+		Collections.reverse(logs);
+	}
+	List<LogBean> rlogArray;
+	if(logs.size() <10){
+		rlogArray = logs.subList(0,logs.size());
+	}else{
+		rlogArray = logs.subList(0,10);
+	}
+	request.setAttribute("rlogarray",rlogArray);
+	
     %>
 <!DOCTYPE html>
 <html>
@@ -40,6 +57,8 @@ table#daily{border:1px solid;margin:0;padding:0;width:100%;height:100%}
 #target{margin:0;padding:0;width:100%}
 #schedule{margin:0;padding:0;width:100%}
 #inp{margin:0;padding:0;width:100%}
+#log{margin:0;padding:0;clear:both}
+#logs{margin-top:10px;margin-left: auto;margin-right: auto;width:80%}
         
 </style>
 </head>
@@ -63,13 +82,13 @@ if(e==1){
 <tr><th class="day"><c:out value="本日(${ y }/${ m }/${ d })の予定"/></th></tr>
 <tr><td class="day">
 <c:forEach var="today" items="${ todayarray }">
-・<c:out value="${ today.title }"/> <a href="/ToDo/jsp/edit.jsp?id=${ today.id }&level=${ today.level }">edit</a><br/>
+・<c:out value="${ today.title }"/> <a href="/ToDo/jsp/edit.jsp?id=${ today.id }&level=${ today.level }">edit</a> <a href="/ToDo/EditController?id=${ today.id }&level=${ today.level }&action=del">del</a><br/>
 </c:forEach>
 </td></tr>
 <tr><th class="day">小目標</th></tr>
 <tr><td class="day">
 <c:forEach var="smalls" items="${ smallarray }">
-・<c:out value="(${ smalls.big_title })-(${ smalls.middle_title })-"/><a href="/ToDo/jsp/top.jsp?id=${ smalls.id }&level=small"><c:out value="${ smalls.title }"/></a> <a href="/ToDo/jsp/edit.jsp?id=${ smalls.id }&level=${ smalls.level }">edit</a>
+・<c:out value="(${ smalls.big_title })-(${ smalls.middle_title })-"/><a href="/ToDo/jsp/top.jsp?id=${ smalls.id }&level=small"><c:out value="${ smalls.title }"/></a> <a href="/ToDo/jsp/edit.jsp?id=${ smalls.id }&level=${ smalls.level }">edit</a> <a href="/ToDo/EditController?id=${ smalls.id }&level=${ smalls.level }&action=del">del</a>
 <br/>
 </c:forEach>
 </td></tr>
@@ -85,13 +104,13 @@ if(e==1){
 <tr><th>大目標</th></tr>
 <tr><td>
 <c:forEach var="bigs" items="${ bigarray }">
-・<c:out value="${ bigs.title }"/> <a href="/ToDo/jsp/edit.jsp?id=${ bigs.id }&level=${ bigs.level }">edit</a><br/>
+・<c:out value="${ bigs.title }"/> <a href="/ToDo/jsp/edit.jsp?id=${ bigs.id }&level=${ bigs.level }">edit</a> <a href="/ToDo/EditController?id=${ bigs.id }&level=${ bigs.level }&action=del">del</a><br/>
 </c:forEach>
 </td></tr>
 <tr><th>中目標</th></tr>
 <tr><td>
 <c:forEach var="middles" items="${ middlearray }">
-・<c:out value="(${ middles.big_title })-"/><c:out value="${ middles.title }"/> <a href="/ToDo/jsp/edit.jsp?id=${ middles.id }&level=${ middles.level }">edit</a>
+・<c:out value="(${ middles.big_title })-"/><c:out value="${ middles.title }"/> <a href="/ToDo/jsp/edit.jsp?id=${ middles.id }&level=${ middles.level }">edit</a> <a href="/ToDo/EditController?id=${ middles.id }&level=${ middles.level }&action=del">del</a>
 <br/>
 </c:forEach>
 </td></tr>
@@ -99,7 +118,7 @@ if(e==1){
 <table border="1" id="schedule">
 <tr><th>スケジュール</th></tr>
 <tr><td><c:forEach var="schedule" items="${ schearray }">
-・<c:out value="${ schedule.title }"/><c:out value="-(${ schedule.year }/${ schedule.month }/${ schedule.day })"/> <a href="/ToDo/jsp/edit.jsp?id=${ schedule.id }&level=${ schedule.level }">edit</a><br/>
+・<c:out value="${ schedule.title }"/><c:out value="-(${ schedule.date })"/> <a href="/ToDo/jsp/edit.jsp?id=${ schedule.id }&level=${ schedule.level }">edit</a> <a href="/ToDo/EditController?id=${ schedule.id }&level=${ schedule.level }&action=del">del</a><br/>
 </c:forEach>
 </td></tr>
 </table><br/>
@@ -167,6 +186,53 @@ if(e==1){
 </table>
 </form>
 </div>
+<br/>
+<div id="log">
+<table border="1" id="logs">
+<tr><th>更新ログ（最新10件）[<a href="/ToDo/jsp/log.jsp">編集ログを全て見る</a>]</th></tr>
+<tr><td>
+<c:forEach var="rlog" items="${ rlogarray }" begin="0" end="9" step="1">
+・<c:choose>
+<c:when test="${ (rlog.ope == 'insert') && (rlog.after_level == 'big') }">
+<c:out value="[大目標]に[${ rlog.after_title }]を登録しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'insert') && (rlog.after_level == 'middle') }">
+<c:out value="[中目標]に[${ rlog.after_title }-(${ rlog.after_big_title })]を登録しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'insert') && (rlog.after_level == 'small') }">
+<c:out value="[小目標]に[${ rlog.after_title }-(${ rlog.after_big_title })-(${ rlog.after_middle_title })]を登録しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'insert') && (rlog.after_level == 'sche') }">
+<c:out value="[スケジュール]に[${ rlog.after_title }(${ rlog.after_date })]を登録しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'big') }">
+<c:out value="[大目標]の[${ rlog.before_title }]を削除しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'middle') }">
+<c:out value="[中目標]の[${ rlog.before_title }-(${ rlog.before_big_title })]を削除しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'small') }">
+<c:out value="[小目標]の[${ rlog.before_title }-(${ rlog.before_big_title })-(${ rlog.before_middle_title })]を削除しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'sche') }">
+<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]を削除しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'big') }">
+<c:out value="[大目標]の[${ rlog.before_title }]を[${ rlog.after_title }]に変更しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'middle') }">
+<c:out value="[中目標]の[${ rlog.before_title }-(${ rlog.before_big_title })]を[${ rlog.after_title }-(${ rlog.after_big_title })]に変更しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'small') }">
+<c:out value="[小目標]の[${ rlog.before_title }-(${ rlog.before_big_title })-(${ rlog.before_middle_title })]を[${ rlog.after_title }-(${ rlog.after_big_title })-(${ rlog.after_middle_title })]に変更しました。"/>
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'sche') }">
+<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]を[${ rlog.after_title }(${ rlog.after_date })]に変更しました。"/>
+</c:when>
+</c:choose>
+<br/>
+</c:forEach></td></tr>
+</table></div>
 <script>
 	let l = document.getElementById('level');
 	l.addEventListener('change', inputChange);

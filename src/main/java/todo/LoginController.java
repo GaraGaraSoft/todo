@@ -55,25 +55,31 @@ public class LoginController extends HttpServlet {
 				//ログインユーザのTODOリストデータ一覧を読み込む
 				ToDoBean tdbean = new ToDoBean();
 				//ユーザー用のデータテーブルを確認、無かったら作成
-				String table = "todo_"+lbean.getUserid();
-				SQLOperator.checkTable(table);
+				SQLOperator.checkTable(lbean.getUserid());
 				
 				ArrayList<PlanBean> bigArray = new ArrayList<>(); //データ一覧から大目標の配列
 				ArrayList<PlanBean> middleArray = new ArrayList<>(); //データ一覧から中目標の配列
 				ArrayList<PlanBean> smallArray = new ArrayList<>(); //データ一覧から小目標の配列
 				ArrayList<PlanBean> todayArray = new ArrayList<>(); //データ一覧から当日のスケジュール配列
+				ArrayList<PlanBean> weekArray = new ArrayList<>(); //データ一覧から一週間のスケジュール配列
 				ArrayList<PlanBean> scheArray = new ArrayList<>(); //データ一覧からスケジュール配列
-				SQLOperator.getList(bigArray,middleArray,smallArray,todayArray,scheArray,tdbean,table); //テーブルから情報を取得して設定
+				ArrayList<LogBean> logArray = new ArrayList<>(); //データ一覧から変更ログ配列
+				SQLOperator.getList(bigArray,middleArray,smallArray,todayArray,weekArray,scheArray,tdbean,lbean.getUserid()); //テーブルから情報を取得して設定
+				SQLOperator.getLog(bigArray,middleArray,logArray,lbean.getUserid());//ログから情報を取得して設定
 				//セッションに各データを登録
 				session.setAttribute("bigarray", bigArray);
 				session.setAttribute("middlearray", middleArray);
 				session.setAttribute("smallarray", smallArray);
 				session.setAttribute("todayarray",todayArray);
+				session.setAttribute("weekarray", weekArray);
 				session.setAttribute("schearray", scheArray);
 				session.setAttribute("tdbean", tdbean);
-
-				System.out.println("111");
+				session.setAttribute("logarray", logArray);
 				
+				for(int i=0;i<logArray.size();i++) {
+					System.out.println("ログ:"+logArray.get(i).getId());
+				}
+				System.out.println("ちぇーっく");
 				//トップ画面にフォワード処理
 				ServletContext application = getServletContext();
 				RequestDispatcher rd = application.getRequestDispatcher("/jsp/top.jsp");

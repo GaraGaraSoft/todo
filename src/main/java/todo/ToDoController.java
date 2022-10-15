@@ -3,6 +3,7 @@ package todo;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
@@ -47,12 +48,20 @@ public class ToDoController extends HttpServlet {
 		try {
 			//フォームデータを取得してModelへ入力
 			PlanBean pbean = new PlanBean();
+			
+			//更新データログをModelへ入力
+			LogBean logbean = new LogBean();
+			logbean.setOpe("insert");
+			
 			String title = request.getParameter("title");
 			pbean.setTitle(title);
+			logbean.setAfter_title(title);
 			String level = request.getParameter("level");
 			pbean.setLevel(level);
+			logbean.setAfter_level(level);
 			String content = request.getParameter("content");
 			pbean.setContent(content);
+			logbean.setAfter_content(content);
 			
 			//セッションを取得
 			HttpSession session = request.getSession();
@@ -69,11 +78,13 @@ public class ToDoController extends HttpServlet {
 			if(level.equals("middle")) {
 				int big = Integer.parseInt(request.getParameter("big_ReadyMade"));
 				pbean.setBig(big);
+				logbean.setAfter_big(big);
 				
 				for(PlanBean b:bigArray) {
 					System.out.println("大のID"+b.getId());
 					if(pbean.getBig() == b.getId()) {
 						pbean.setBig_title(b.getTitle());
+						logbean.setAfter_big_title(b.getTitle());
 					break;
 					}
 				}
@@ -86,12 +97,15 @@ public class ToDoController extends HttpServlet {
 				int middle = Integer.parseInt(bm[0]);
 				int big = Integer.parseInt(bm[1]);
 				pbean.setMiddle(middle);
+				logbean.setAfter_middle(middle);
 				pbean.setBig(big);
+				logbean.setAfter_big(big);
 
 				for(PlanBean b:bigArray) {
 					System.out.println("大のID"+b.getId());
 					if(pbean.getBig() == b.getId()) {
 						pbean.setBig_title(b.getTitle());
+						logbean.setAfter_big_title(b.getTitle());
 					break;
 					}
 				}
@@ -100,6 +114,7 @@ public class ToDoController extends HttpServlet {
 					System.out.println("中のID"+m.getId());
 					if(pbean.getMiddle() == m.getId()) {
 						pbean.setMiddle_title(m.getTitle());
+						logbean.setAfter_middle_title(m.getTitle());
 					break;
 					}
 				}
@@ -107,19 +122,16 @@ public class ToDoController extends HttpServlet {
 			
 			//予定を入れるとき年月日を取得
 			if(level.equals("sche")) {
-				int year = Integer.parseInt(request.getParameter("year"));
-				pbean.setYear(year);
-				int month = Integer.parseInt(request.getParameter("month"));
-				pbean.setMonth(month);
-				int day = Integer.parseInt(request.getParameter("day"));
-				pbean.setDay(day);
+				String date = request.getParameter("year")+"-"+request.getParameter("month")+"-"+request.getParameter("day");
+				pbean.setDate(date);
+				logbean.setAfter_date(date);
 			}
 			
 			
-			System.out.println(title+","+level+","+content+"1");
 			//入力情報をデータベースに登録
-			boolean result = SQLOperator.setNewData(pbean,lbean.getUserid());
+			boolean result = SQLOperator.setNewData(pbean,logbean,lbean.getUserid());
 			
+			logbean.setId(pbean.getId());
 			
 			//sessionに情報を再セット
 			if(result) {
@@ -142,9 +154,9 @@ public class ToDoController extends HttpServlet {
 					Calendar cal = Calendar.getInstance();
 		
 					if(
-						pbean.getYear() == cal.get(Calendar.YEAR) &&
-						pbean.getMonth() == cal.get(Calendar.MONTH)+1 &&
-						pbean.getDay() == cal.get(Calendar.DATE)) {
+						Integer.parseInt(pbean.getDate().substring(0,4))  == cal.get(Calendar.YEAR) &&
+						Integer.parseInt(pbean.getDate().substring(5,7)) == cal.get(Calendar.MONTH)+1 &&
+						Integer.parseInt(pbean.getDate().substring(8,10)) == cal.get(Calendar.DATE)) {
 						@SuppressWarnings("unchecked")
 						ArrayList<PlanBean> todayArray = (ArrayList<PlanBean>) session.getAttribute("todayarray");
 						todayArray.add(pbean);
@@ -165,6 +177,12 @@ public class ToDoController extends HttpServlet {
 					
 					
 				}
+				//ログデータをセッション情報に登録
+				@SuppressWarnings("unchecked")
+				ArrayList<LogBean> logArray = (ArrayList<LogBean>) session.getAttribute("logarray");
+				Collections.reverse(logArray);
+				logArray.add(logbean);
+				session.setAttribute("logarray", logArray);
 			}
 			//トップ画面にフォワード処理
 			ServletContext application = getServletContext();

@@ -10,13 +10,32 @@ public class PlanBean implements Serializable{
 	private String level;
 	private int big;
 	private int middle;
-	private int year;
-	private int month;
-	private int day;
+	private String date;
+	private boolean hold;
+	private int important;
 	private String big_title;
 	private String middle_title;
 	
 	
+	
+	public String getDate() {
+		return date;
+	}
+	public void setDate(String date) {
+		this.date = date;
+	}
+	public boolean isHold() {
+		return hold;
+	}
+	public void setHold(boolean hold) {
+		this.hold = hold;
+	}
+	public int getImportant() {
+		return important;
+	}
+	public void setImportant(int important) {
+		this.important = important;
+	}
 	public void setId(int id) {
 		this.id = id;
 	}
@@ -49,24 +68,6 @@ public class PlanBean implements Serializable{
 	}
 	public void setMiddle(int middle) {
 		this.middle = middle;
-	}
-	public int getYear() {
-		return year;
-	}
-	public void setYear(int year) {
-		this.year = year;
-	}
-	public int getMonth() {
-		return month;
-	}
-	public void setMonth(int month) {
-		this.month = month;
-	}
-	public int getDay() {
-		return day;
-	}
-	public void setDay(int day) {
-		this.day = day;
 	}
 	public int getId() {
 		return id;
