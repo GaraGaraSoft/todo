@@ -75,7 +75,8 @@ public class LoginController extends HttpServlet {
 				session.setAttribute("schearray", scheArray);
 				session.setAttribute("tdbean", tdbean);
 				session.setAttribute("logarray", logArray);
-				
+
+				System.out.println("WEEK:"+weekArray.size());
 				for(int i=0;i<logArray.size();i++) {
 					System.out.println("ログ:"+logArray.get(i).getId());
 				}

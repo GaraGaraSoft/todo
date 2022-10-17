@@ -22,8 +22,8 @@
 <meta charset="UTF-8">
 <title>更新ログ</title>
 <style>
-.reset{max-width:60px}
-#log{margin:0;padding:0;clear:both}
+.reset{max-width:70px}
+#log{margin:0;padding:0}
 #logs{margin-top:10px;margin-left: auto;margin-right: auto;width:80%}
         
 </style>
@@ -46,7 +46,7 @@
 <c:out value="[小目標]に[${ rlog.after_title }-(${ rlog.after_big_title })-(${ rlog.after_middle_title })]を登録しました。"/>
 </c:when>
 <c:when test="${ (rlog.ope == 'insert') && (rlog.after_level == 'sche') }">
-<c:out value="[スケジュール]に[${ rlog.after_title }(${ rlog.after_year }/${ rlog.after_month }/${ rlog.after_day })]を登録しました。"/>
+<c:out value="[スケジュール]に[${ rlog.after_title }(${ rlog.after_date })]を登録しました。"/>
 </c:when>
 <c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'big') }">
 <c:out value="[大目標]の[${ rlog.before_title }]を削除しました。"/>
@@ -58,7 +58,7 @@
 <c:out value="[小目標]の[${ rlog.before_title }-(${ rlog.before_big_title })-(${ rlog.before_middle_title })]を削除しました。"/>
 </c:when>
 <c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'sche') }">
-<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_year }/${ rlog.before_month }/${ rlog.before_day })]を削除しました。"/>
+<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]を削除しました。"/>
 </c:when>
 <c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'big') }">
 <c:out value="[大目標]の[${ rlog.before_title }]を[${ rlog.after_title }]に変更しました。"/>
@@ -70,10 +70,12 @@
 <c:out value="[小目標]の[${ rlog.before_title }-(${ rlog.before_big_title })-(${ rlog.before_middle_title })]を[${ rlog.after_title }-(${ rlog.after_big_title })-(${ rlog.after_middle_title })]に変更しました。"/>
 </c:when>
 <c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'sche') }">
-<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_year }/${ rlog.before_month }/${ rlog.before_day })]を[${ rlog.after_title }(${ rlog.after_year }/${ rlog.after_month }/${ rlog.after_day })]に変更しました。"/>
+<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]を[${ rlog.after_title }(${ rlog.after_date })]に変更しました。"/>
 </c:when>
 </c:choose></td>
-<td class="reset">更新をリセット</td>
+<td class="reset"><form action="/ToDo/resetController" method="post" name="rform">
+<input type="hidden" name="logid" value="${ rlog.logid }">
+<input type="submit" value="変更リセット"/></form></td>
 </tr>
 </c:forEach>
 </table></div>

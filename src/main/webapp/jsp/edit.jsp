@@ -158,9 +158,8 @@
 </c:forEach></select>
 </c:when>
 </c:choose>
-
-</td>
-</tr>
+</td></tr>
+<tr><th>保留状態</th><td><input type="checkbox" name="hold" value="on" ></td></tr>
 <tr><td colspan="2">
 <input type="submit" value="編集完了"/>
 <input type="reset" value="やり直し"/>

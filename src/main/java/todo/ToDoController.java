@@ -63,6 +63,18 @@ public class ToDoController extends HttpServlet {
 			pbean.setContent(content);
 			logbean.setAfter_content(content);
 			
+			//保留状態にチェックが入っていたらholdをtrueに
+			if(request.getParameterValues("hold").length==1) {
+				if(request.getParameterValues("hold")[0].equals("on")) {
+				pbean.setHold(true);
+				logbean.setHold(true);
+				}
+					
+			}else {
+				pbean.setHold(false);
+				logbean.setHold(false);
+			}
+			
 			//セッションを取得
 			HttpSession session = request.getSession();
 			LoginBean lbean = (LoginBean) session.getAttribute("loginbean");
@@ -85,6 +97,11 @@ public class ToDoController extends HttpServlet {
 					if(pbean.getBig() == b.getId()) {
 						pbean.setBig_title(b.getTitle());
 						logbean.setAfter_big_title(b.getTitle());
+						
+						if(b.isHold()==true) { //大目標が保留中の時、このデータも保留にする
+							pbean.setHold(true);
+							logbean.setHold(true);
+						}
 					break;
 					}
 				}
@@ -115,6 +132,10 @@ public class ToDoController extends HttpServlet {
 					if(pbean.getMiddle() == m.getId()) {
 						pbean.setMiddle_title(m.getTitle());
 						logbean.setAfter_middle_title(m.getTitle());
+						if(m.isHold()==true) { //中目標が保留中の時、このデータも保留にする
+							pbean.setHold(true);
+							logbean.setHold(true);
+						}
 					break;
 					}
 				}
@@ -127,9 +148,14 @@ public class ToDoController extends HttpServlet {
 				logbean.setAfter_date(date);
 			}
 			
+			//スケジュール変更時、weekarrayをセットし直す
+			if(level.equals("sche")) {
+				session.removeAttribute("weekarray");
+			}
+			ArrayList<PlanBean> weekArray = new ArrayList<>(); 
 			
 			//入力情報をデータベースに登録
-			boolean result = SQLOperator.setNewData(pbean,logbean,lbean.getUserid());
+			boolean result = SQLOperator.setNewData(pbean,logbean,weekArray,lbean.getUserid());
 			
 			logbean.setId(pbean.getId());
 			
@@ -175,7 +201,7 @@ public class ToDoController extends HttpServlet {
 						
 					}
 					
-					
+					session.setAttribute("weekarray", weekArray);
 				}
 				//ログデータをセッション情報に登録
 				@SuppressWarnings("unchecked")

@@ -46,30 +46,30 @@ public class EditController extends HttpServlet {
 
 			//削除するデータの目標レベル
 			String level = request.getParameter("level");
-			//削除するデータの大目標データ
-			int big = 0;
-			if(level.equals("middle")) {
-				@SuppressWarnings("unchecked")
-				ArrayList<PlanBean> middleArray = (ArrayList<PlanBean>) session.getAttribute("middlearray");
-				for(PlanBean pbean:middleArray) {
-					if(id == pbean.getId()) {
-						big = pbean.getBig();
-						break;
-					}
-				}
-				
-				
-			}else if(level.equals("small")) {
-				@SuppressWarnings("unchecked")
-				ArrayList<PlanBean> smallArray = (ArrayList<PlanBean>) session.getAttribute("smallarray");
-				for(PlanBean pbean:smallArray) {
-					if(id == pbean.getId()) {
-						big = pbean.getBig();
-						break;
-					}
-				}
-				
-			}
+			/*			//削除するデータの大目標データ
+						int big = 0;
+						if(level.equals("middle")) {
+							@SuppressWarnings("unchecked")
+							ArrayList<PlanBean> middleArray = (ArrayList<PlanBean>) session.getAttribute("middlearray");
+							for(PlanBean pbean:middleArray) {
+								if(id == pbean.getId()) {
+									big = pbean.getBig();
+									break;
+								}
+							}
+							
+							
+						}else if(level.equals("small")) {
+							@SuppressWarnings("unchecked")
+							ArrayList<PlanBean> smallArray = (ArrayList<PlanBean>) session.getAttribute("smallarray");
+							for(PlanBean pbean:smallArray) {
+								if(id == pbean.getId()) {
+									big = pbean.getBig();
+									break;
+								}
+							}
+							
+						}*/
 			
 			//削除前のデータを取得してLogBeanへ設定
 			LogBean logbean = new LogBean();
@@ -83,6 +83,7 @@ public class EditController extends HttpServlet {
 					logbean.setBefore_title(pbean.getTitle());
 					logbean.setBefore_content(pbean.getContent());
 					logbean.setBefore_level(level);
+					logbean.setHold(pbean.isHold());
 					break;
 					}
 				}
@@ -99,6 +100,7 @@ public class EditController extends HttpServlet {
 					logbean.setBefore_level(level);
 					logbean.setBefore_big(pbean.getBig());
 					logbean.setBefore_big_title(pbean.getBig_title());
+					logbean.setHold(pbean.isHold());
 					break;
 					}
 				}
@@ -117,6 +119,7 @@ public class EditController extends HttpServlet {
 					logbean.setBefore_big_title(pbean.getBig_title());
 					logbean.setBefore_middle(pbean.getMiddle());
 					logbean.setBefore_middle_title(pbean.getMiddle_title());
+					logbean.setHold(pbean.isHold());
 						break;
 					}
 				}
@@ -132,6 +135,7 @@ public class EditController extends HttpServlet {
 					logbean.setBefore_content(pbean.getContent());
 					logbean.setBefore_level(level);
 					logbean.setBefore_date(pbean.getDate());
+					logbean.setHold(pbean.isHold());
 						break;
 					}
 				}
@@ -139,10 +143,9 @@ public class EditController extends HttpServlet {
 			
 			
 			//idの登録データを削除
-			int result = SQLOperator.deleteData(id,lbean.getUserid(),level,big,logbean);
+			int result = SQLOperator.deleteData(id,lbean.getUserid(),level,logbean);
 			
 			
-
 			//削除前のログをセッション情報に設定
 			@SuppressWarnings("unchecked")
 			ArrayList<LogBean> logArray = (ArrayList<LogBean>) session.getAttribute("logarray");
@@ -173,6 +176,7 @@ public class EditController extends HttpServlet {
 						if(id == middleArray.get(i).getBig()) {
 							middleArray.get(i).setBig(0);
 							middleArray.get(i).setBig_title("");
+							middleArray.get(i).setHold(true); //上位データ削除時、中位は保留に
 							result--;
 							
 						}
@@ -184,7 +188,7 @@ public class EditController extends HttpServlet {
 						if(id == smallArray.get(i).getBig()) {
 							smallArray.get(i).setBig(0);
 							smallArray.get(i).setBig_title("");
-							smallArray.get(i).setMiddle_title("");
+							smallArray.get(i).setHold(true); //上位データ削除時、下位も保留に
 							result--;
 						}
 						if(result==0 || result==99999) {
@@ -211,9 +215,11 @@ public class EditController extends HttpServlet {
 
 					for(int i=0;i<smallArray.size();i++) {
 						if(id == smallArray.get(i).getMiddle()) {
+							smallArray.get(i).setBig(0);
 							smallArray.get(i).setMiddle(0);
 							smallArray.get(i).setBig_title("");
 							smallArray.get(i).setMiddle_title("");
+							smallArray.get(i).setHold(true); //上位データ削除時、下位を保留に
 							result--;
 						}
 						if(result==0 || result==99999) {
@@ -240,9 +246,10 @@ public class EditController extends HttpServlet {
 
 					//削除するスケジュールのセッション情報
 					PlanBean sbean = null;
-					if(level.equals("sche")) {
 						@SuppressWarnings("unchecked")
 						ArrayList<PlanBean> scheArray = (ArrayList<PlanBean>) session.getAttribute("schearray");
+						@SuppressWarnings("unchecked")
+						ArrayList<PlanBean> weekArray = (ArrayList<PlanBean>) session.getAttribute("weekarray");
 						for(int i=0;i<scheArray.size();i++) {
 							if(id == scheArray.get(i).getId()) {
 								sbean = scheArray.get(i);
@@ -250,6 +257,13 @@ public class EditController extends HttpServlet {
 								break;
 							}
 						}
+						for(int i=0;i<weekArray.size();i++) {
+							if(id == weekArray.get(i).getId()) {
+								weekArray.remove(i);
+								break;
+							}
+						}
+						session.setAttribute("weekarray", weekArray);
 						session.setAttribute("schearray", scheArray);
 						
 						//削除するスケジュールが当日なら当日分も取得
@@ -273,7 +287,6 @@ public class EditController extends HttpServlet {
 						}
 						
 						
-					}
 					
 				}
 				
@@ -314,6 +327,8 @@ public class EditController extends HttpServlet {
 			ArrayList<PlanBean> smallArray = (ArrayList<PlanBean>) session.getAttribute("smallarray");
 			@SuppressWarnings("unchecked")
 			ArrayList<PlanBean> scheArray = (ArrayList<PlanBean>) session.getAttribute("schearray");
+			@SuppressWarnings("unchecked")
+			ArrayList<PlanBean> weekArray = (ArrayList<PlanBean>) session.getAttribute("weekarray");
 			
 			//編集データをpbeanデータ化
 			PlanBean pbean = new PlanBean();
@@ -326,12 +341,25 @@ public class EditController extends HttpServlet {
 			String level = request.getParameter("level");
 			pbean.setLevel(level);
 			
+			boolean hold = false; //編集データの保留状態
+			//保留状態にチェックが入っていたらholdをtrueに
+			if(request.getParameterValues("hold").length==1) {
+				if(request.getParameterValues("hold")[0].equals("on")) {
+					hold = true;
+				}
+					
+			}else {
+				hold = false;
+			}
+			pbean.setHold(hold);
+			logbean.setHold(hold);
 			
 			//編集する各データの取得
 			String title = request.getParameter("title"); //タイトル取得
 			pbean.setTitle(title);
 			String content = request.getParameter("content"); //詳細取得
 			pbean.setContent(content);
+			
 			if(level.equals("middle")) { //中目標選択時の大目標データ取得
 				int big = Integer.parseInt(request.getParameter("big_ReadyMade"));
 				pbean.setBig(big);
@@ -362,6 +390,9 @@ public class EditController extends HttpServlet {
 			}else if(level.equals("sche")) {
 				String date = request.getParameter("year")+"-"+request.getParameter("month")+"-"+request.getParameter("day");
 				pbean.setDate(date);
+				//スケジュール編集時週のデータも取得し直す
+				session.removeAttribute("weekarray");
+				weekArray = new ArrayList<>(); 
 			}
 			
 			if(level.equals("big")) {
@@ -443,7 +474,7 @@ public class EditController extends HttpServlet {
 			
 			
 			//idの登録データを編集
-			boolean result = SQLOperator.editData(lbean.getUserid(),pbean,logbean);
+			boolean result = SQLOperator.editData(lbean.getUserid(),pbean,weekArray,logbean);
 			
 			//データ編集成功時、セッション情報を書き換える
 			if(result) {
@@ -455,6 +486,7 @@ public class EditController extends HttpServlet {
 							//セッションの大目標のデータを編集
 							bigArray.get(i).setTitle(title);
 							bigArray.get(i).setContent(content);
+							bigArray.get(i).setHold(hold);
 							break;
 						}
 					}
@@ -463,12 +495,14 @@ public class EditController extends HttpServlet {
 					for(int i=0;i<middleArray.size();i++) {
 						if(id == middleArray.get(i).getBig()) {
 							middleArray.get(i).setBig_title(title);
+							middleArray.get(i).setHold(hold);
 							
 						}
 					}
 					for(int i=0;i<smallArray.size();i++) {
 						if(id == smallArray.get(i).getBig()) {
 							smallArray.get(i).setBig_title(title);
+							smallArray.get(i).setHold(hold);
 						}
 					}
 					
@@ -489,6 +523,7 @@ public class EditController extends HttpServlet {
 							middleArray.get(i).setContent(content);
 							middleArray.get(i).setBig(pbean.getBig());
 							middleArray.get(i).setBig_title(pbean.getBig_title());
+							middleArray.get(i).setHold(hold);
 							break;
 						}
 					}
@@ -499,6 +534,7 @@ public class EditController extends HttpServlet {
 							smallArray.get(i).setMiddle_title(title);
 							smallArray.get(i).setBig_title(pbean.getBig_title());
 							smallArray.get(i).setBig(pbean.getBig());
+							smallArray.get(i).setHold(hold);
 						}
 					}
 					
@@ -530,6 +566,7 @@ public class EditController extends HttpServlet {
 							smallArray.get(i).setBig_title(pbean.getBig_title());
 							smallArray.get(i).setMiddle(pbean.getMiddle());
 							smallArray.get(i).setMiddle_title(pbean.getMiddle_title());
+							smallArray.get(i).setHold(hold);
 							break;
 						}
 					}
@@ -553,6 +590,7 @@ public class EditController extends HttpServlet {
 								todayArray.get(i).setTitle(title);
 								todayArray.get(i).setContent(content);
 								todayArray.get(i).setDate(pbean.getDate());
+								todayArray.get(i).setHold(hold);
 								session.setAttribute("todayarray", todayArray);
 								todaycheck = true;
 								
@@ -566,11 +604,13 @@ public class EditController extends HttpServlet {
 								scheArray.get(i).setTitle(title);
 								scheArray.get(i).setContent(content);
 								scheArray.get(i).setDate(pbean.getDate());
+								scheArray.get(i).setHold(hold);
 								if(!todaycheck){
 									PlanBean tbean = new PlanBean();
 									tbean.setTitle(title);
 									tbean.setContent(content);
 									tbean.setDate(pbean.getDate());
+									tbean.setHold(hold);
 									todayArray.add(tbean);
 									session.setAttribute("todayarray", todayArray);
 								}
@@ -593,11 +633,13 @@ public class EditController extends HttpServlet {
 								scheArray.get(i).setTitle(title);
 								scheArray.get(i).setContent(content);
 								scheArray.get(i).setDate(pbean.getDate());
+								scheArray.get(i).setHold(hold);
 								break;
 							}
 						}
 						
 					}
+					
 					
 				}
 				
@@ -607,6 +649,7 @@ public class EditController extends HttpServlet {
 			session.setAttribute("middlearray", middleArray);
 			session.setAttribute("bigarray", bigArray);
 			session.setAttribute("schearray", scheArray);
+			session.setAttribute("weekarray", weekArray);
 			
 			//ログのセッション情報を再設定
 			@SuppressWarnings("unchecked")
