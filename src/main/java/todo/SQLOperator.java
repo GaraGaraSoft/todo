@@ -81,6 +81,7 @@ public class SQLOperator {
 		sql = "create table if not exists log_"+userid+"(\n"
 				+ "log_id int auto_increment primary key,\n"
 				+ "id int,\n"
+				+ "beforehold boolean,\n"
 				+ "hold boolean,\n"
 				+ "ope varchar(10),\n"
 				+ "before_title text,\n"
@@ -114,7 +115,7 @@ public class SQLOperator {
 		return;
 	}
 	
-	public static boolean getList(ArrayList<PlanBean> bigarray,ArrayList<PlanBean> middlearray,ArrayList<PlanBean> smallarray,ArrayList<PlanBean> todayarray,ArrayList<PlanBean> weekarray,ArrayList<PlanBean> schearray,ToDoBean tdbean,String userid) {
+	public static boolean getList(ArrayList<PlanBean> bigarray,ArrayList<PlanBean> middlearray,ArrayList<PlanBean> smallarray,ArrayList<PlanBean> todayarray,ArrayList<PlanBean> weekarray,ArrayList<PlanBean> schearray,String userid) {
 		//ユーザーのデータテーブルを取得して設定
 		boolean result = false;
 		String table = "todo_"+userid; //ユーザーテーブル名
@@ -143,7 +144,6 @@ public class SQLOperator {
 					for(PlanBean b:bigarray) {
 						if(pbean.getBig() == b.getId()) {
 							pbean.setBig_title(b.getTitle());
-						System.out.println("大"+b.getTitle());
 						break;
 						}
 					}
@@ -154,7 +154,6 @@ public class SQLOperator {
 					for(PlanBean b:bigarray) {
 						if(pbean.getBig() == b.getId()) {
 							pbean.setBig_title(b.getTitle());
-						System.out.println("大"+b.getTitle());
 						break;
 						}
 					}
@@ -162,9 +161,7 @@ public class SQLOperator {
 					//中目標のタイトルを取得してセッション配列に登録
 					for(PlanBean m:middlearray) {
 						if(pbean.getMiddle() == m.getId()) {
-					System.out.println("中:"+m.getId());
 							pbean.setMiddle_title(m.getTitle());
-							System.out.println("中"+m.getTitle());
 						break;
 						}
 					}
@@ -235,6 +232,7 @@ public class SQLOperator {
 				LogBean lbean = new LogBean();
 				lbean.setLogid(rs.getInt("log_id"));
 				lbean.setId(rs.getInt("id"));
+				lbean.setBeforehold(rs.getBoolean("beforehold"));
 				lbean.setHold(rs.getBoolean("hold"));
 				lbean.setOpe(rs.getString("ope"));
 				lbean.setBefore_title(rs.getString("before_title"));
@@ -607,6 +605,7 @@ public class SQLOperator {
 
 			         lrs.close();
 			         
+			         //スケジュール追加後の週スケジュールを再取得
 						sql = "select * from todo_"+userid+" where level='sche' and date between date_add(curdate(),interval 1 day) and date_add(curdate(),interval 7 day) order by date";
 						try(Statement st = conn.createStatement();){
 							
@@ -676,7 +675,7 @@ public class SQLOperator {
 		
 		if(pbean.getLevel().equals("big")) {
 			
-			String sql = "update todo_"+userid+" set title=?,content=?,hold=? where id=?";
+			String sql = "update todo_"+userid+" set title=?,content=?,hold=?,level='big',big=null,middle=null,date=null where id=?";
 			try(Connection conn = ResourceFinder.getConnection();
 				PreparedStatement pst = conn.prepareStatement(sql);){
 				pst.setString(1, pbean.getTitle());
@@ -686,17 +685,21 @@ public class SQLOperator {
 				pst.executeUpdate();
 				
 
-		         sql = "insert into log_"+userid+"(id,ope,before_title,before_content,before_level,after_title,after_content,after_level,hold) values(?,?,?,?,?,?,?,?,?)";
+		         sql = "insert into log_"+userid+"(id,ope,before_title,before_content,before_level,before_big,before_middle,before_date,after_title,after_content,after_level,beforehold,hold) values(?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		         try(PreparedStatement pstl = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);){
 		        	 pstl.setInt(1, logbean.getId());
 		        	 pstl.setString(2, logbean.getOpe());
 		        	 pstl.setString(3, logbean.getBefore_title());
 		        	 pstl.setString(4, logbean.getBefore_content());
 		        	 pstl.setString(5, logbean.getBefore_level());
-		        	 pstl.setString(6, logbean.getAfter_title());
-		        	 pstl.setString(7, logbean.getAfter_content());
-		        	 pstl.setString(8, logbean.getAfter_level());
-		        	 pstl.setBoolean(9, logbean.getHold());
+		        	 pstl.setInt(6, logbean.getBefore_big());
+		        	 pstl.setInt(7, logbean.getBefore_middle());
+		        	 pstl.setString(8, logbean.getBefore_date());
+		        	 pstl.setString(9, logbean.getAfter_title());
+		        	 pstl.setString(10, logbean.getAfter_content());
+		        	 pstl.setString(11, logbean.getAfter_level());
+		        	 pstl.setBoolean(12, logbean.getBeforehold());
+		        	 pstl.setBoolean(13, logbean.getHold());
 		        	 pstl.executeUpdate();
 
 			         // 新しく登録したデータのログidを取り出す
@@ -711,7 +714,36 @@ public class SQLOperator {
 			         System.out.println(newlogid);
 
 			         lrs.close();
-		        	 check = true;
+			         
+
+
+			         if(logbean.getBefore_level().equals("sche")) {
+				         //スケジュール書き換え後の週スケジュールを再取得
+							sql = "select * from todo_"+userid+" where level='sche' and date between date_add(curdate(),interval 1 day) and date_add(curdate(),interval 7 day) order by date";
+							try(Statement st = conn.createStatement();){
+								
+								ResultSet srs = st.executeQuery(sql);
+								while(srs.next()) {
+									PlanBean sbean = new PlanBean();
+									sbean.setId(srs.getInt("id"));
+									sbean.setTitle(srs.getString("title"));
+									sbean.setContent(srs.getString("content"));
+									sbean.setLevel(srs.getString("level"));
+									sbean.setDate(srs.getString("date"));
+									sbean.setHold(srs.getBoolean("hold"));
+									sbean.setImportant(srs.getInt("important"));
+									weekarray.add(sbean);
+								}
+								srs.close();
+					         }catch(Exception e) {
+					        	 e.printStackTrace();
+					         }
+						}
+							
+							
+						check = true;
+				
+			         
 		         }catch(Exception e) {
 		        	 e.printStackTrace();
 		         }
@@ -723,7 +755,7 @@ public class SQLOperator {
 		}else if(pbean.getLevel().equals("middle")) {
 
 			//中目標のデータベース書き換え
-			String sql = "update todo_"+userid+" set title=?,content=?,big=?,hold=? where id=?";
+			String sql = "update todo_"+userid+" set title=?,content=?,big=?,hold=?,level='middle',middle=null,date=null where id=?";
 			try(Connection conn = ResourceFinder.getConnection();
 					PreparedStatement pst = conn.prepareStatement(sql);){
 					pst.setString(1, pbean.getTitle());
@@ -733,17 +765,29 @@ public class SQLOperator {
 					pst.setInt(5, pbean.getId());
 					pst.executeUpdate();
 					
-					try { //小目標の上目標を変更
-						String sql2 = "update todo_"+userid+" set big=?,hold=? where middle=?";
+					if(logbean.getBefore_level().equals("middle")) { //中目標から中目標へ移動するとき、下目標の上目標も書き換える
+					try { 
+						
+						String sql2;
+						if(pbean.isHold()==true) {
+							sql2 = "update todo_"+userid+" set big=?,hold=true where middle=?";
+							
+						}else {
+							sql2 = "update todo_"+userid+" set big=? where middle=?";
+						}
+							
 						PreparedStatement pstm = conn.prepareStatement(sql2);
 						pstm.setInt(1, pbean.getBig());
-						pstm.setBoolean(2, pbean.isHold());
-						pstm.setInt(3, pbean.getId());
+						pstm.setInt(2, pbean.getId());
 						pstm.executeUpdate();
 						pstm.close();
+						}catch(Exception e) {
+							e.printStackTrace();
+						}
+					}
 
-						//削除したデータをログ情報に入力
-				         sql = "insert into log_"+userid+"(id,ope,before_title,before_content,before_level,before_big,after_title,after_content,after_level,after_big,hold) values(?,?,?,?,?,?,?,?,?,?,?)";
+						//変更したデータをログ情報に入力
+				         sql = "insert into log_"+userid+"(id,ope,before_title,before_content,before_level,before_big,before_middle,before_date,after_title,after_content,after_level,after_big,beforehold,hold) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 				         try(PreparedStatement pstl = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);){
 				        	 pstl.setInt(1, logbean.getId());
 				        	 pstl.setString(2, logbean.getOpe());
@@ -751,11 +795,14 @@ public class SQLOperator {
 				        	 pstl.setString(4, logbean.getBefore_content());
 				        	 pstl.setString(5, logbean.getBefore_level());
 				        	 pstl.setInt(6, logbean.getBefore_big());
-				        	 pstl.setString(7, logbean.getAfter_title());
-				        	 pstl.setString(8, logbean.getAfter_content());
-				        	 pstl.setString(9, logbean.getAfter_level());
-				        	 pstl.setInt(10, logbean.getAfter_big());
-				        	 pstl.setBoolean(11, logbean.getHold());
+				        	 pstl.setInt(7, logbean.getBefore_middle());
+				        	 pstl.setString(8, logbean.getBefore_date());
+				        	 pstl.setString(9, logbean.getAfter_title());
+				        	 pstl.setString(10, logbean.getAfter_content());
+				        	 pstl.setString(11, logbean.getAfter_level());
+				        	 pstl.setInt(12, logbean.getAfter_big());
+				        	 pstl.setBoolean(13, logbean.getBeforehold());
+				        	 pstl.setBoolean(14, logbean.getHold());
 				        	 pstl.executeUpdate();
 				        	 
 				        	// 新しく登録したデータのログidを取り出す
@@ -770,16 +817,37 @@ public class SQLOperator {
 					         System.out.println(newlogid);
 
 					         lrs.close();
-				        	 
-				        	 check = true;
+
+
+									
+					         if(logbean.getBefore_level().equals("sche")) {
+						         //スケジュール書き換え後の週スケジュールを再取得
+									sql = "select * from todo_"+userid+" where level='sche' and date between date_add(curdate(),interval 1 day) and date_add(curdate(),interval 7 day) order by date";
+									try(Statement st = conn.createStatement();){
+										
+										ResultSet srs = st.executeQuery(sql);
+										while(srs.next()) {
+											PlanBean sbean = new PlanBean();
+											sbean.setId(srs.getInt("id"));
+											sbean.setTitle(srs.getString("title"));
+											sbean.setContent(srs.getString("content"));
+											sbean.setLevel(srs.getString("level"));
+											sbean.setDate(srs.getString("date"));
+											sbean.setHold(srs.getBoolean("hold"));
+											sbean.setImportant(srs.getInt("important"));
+											weekarray.add(sbean);
+										}
+										srs.close();
+							         }catch(Exception e) {
+							        	 e.printStackTrace();
+							         }
+								}
+									
+									check = true;
+						
 				         }catch(Exception e) {
 				        	 e.printStackTrace();
 				         }
-						
-						
-					}catch(Exception e) {
-						e.printStackTrace();
-					}
 					
 				}catch(Exception e) {
 					e.printStackTrace();
@@ -787,7 +855,7 @@ public class SQLOperator {
 			
 		}else if(pbean.getLevel().equals("small")) {
 
-			String sql = "update todo_"+userid+" set title=?,content=?,big=?,middle=?,hold=? where id=?";
+			String sql = "update todo_"+userid+" set title=?,content=?,big=?,middle=?,hold=?,date=null,level='small' where id=?";
 			try(Connection conn = ResourceFinder.getConnection();
 					PreparedStatement pst = conn.prepareStatement(sql);){
 					pst.setString(1, pbean.getTitle());
@@ -799,7 +867,7 @@ public class SQLOperator {
 					pst.executeUpdate();
 					
 					//削除したデータをログ情報に入力
-			         sql = "insert into log_"+userid+"(id,ope,before_title,before_content,before_level,before_big,before_middle,after_title,after_content,after_level,after_big,after_middle,hold) values(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			         sql = "insert into log_"+userid+"(id,ope,before_title,before_content,before_level,before_big,before_middle,before_date,after_title,after_content,after_level,after_big,after_middle,beforehold,hold) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			         try(PreparedStatement pstl = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);){
 			        	 pstl.setInt(1, logbean.getId());
 			        	 pstl.setString(2, logbean.getOpe());
@@ -808,12 +876,14 @@ public class SQLOperator {
 			        	 pstl.setString(5, logbean.getBefore_level());
 			        	 pstl.setInt(6, logbean.getBefore_big());
 			        	 pstl.setInt(7, logbean.getBefore_middle());
-			        	 pstl.setString(8, logbean.getAfter_title());
-			        	 pstl.setString(9, logbean.getAfter_content());
-			        	 pstl.setString(10, logbean.getAfter_level());
-			        	 pstl.setInt(11, logbean.getAfter_big());
-			        	 pstl.setInt(12, logbean.getAfter_middle());
-			        	 pstl.setBoolean(13, logbean.getHold());
+			        	 pstl.setString(8, logbean.getBefore_date());
+			        	 pstl.setString(9, logbean.getAfter_title());
+			        	 pstl.setString(10, logbean.getAfter_content());
+			        	 pstl.setString(11, logbean.getAfter_level());
+			        	 pstl.setInt(12, logbean.getAfter_big());
+			        	 pstl.setInt(13, logbean.getAfter_middle());
+			        	 pstl.setBoolean(14, logbean.getBeforehold());
+			        	 pstl.setBoolean(15, logbean.getHold());
 			        	 pstl.executeUpdate();
 			        	 
 			        	// 新しく登録したデータのログidを取り出す
@@ -829,7 +899,35 @@ public class SQLOperator {
 
 				         lrs.close();
 			        	 
-			        	 check = true;
+				         
+
+				         if(logbean.getBefore_level().equals("sche")) {
+					         //スケジュール書き換え後の週スケジュールを再取得
+								sql = "select * from todo_"+userid+" where level='sche' and date between date_add(curdate(),interval 1 day) and date_add(curdate(),interval 7 day) order by date";
+								try(Statement st = conn.createStatement();){
+									
+									ResultSet srs = st.executeQuery(sql);
+									while(srs.next()) {
+										PlanBean sbean = new PlanBean();
+										sbean.setId(srs.getInt("id"));
+										sbean.setTitle(srs.getString("title"));
+										sbean.setContent(srs.getString("content"));
+										sbean.setLevel(srs.getString("level"));
+										sbean.setDate(srs.getString("date"));
+										sbean.setHold(srs.getBoolean("hold"));
+										sbean.setImportant(srs.getInt("important"));
+										weekarray.add(sbean);
+									}
+									srs.close();
+						         }catch(Exception e) {
+						        	 e.printStackTrace();
+						         }
+							}
+								
+								
+								check = true;
+					
+							
 			         }catch(Exception e) {
 			        	 e.printStackTrace();
 			         }
@@ -840,7 +938,7 @@ public class SQLOperator {
 			
 		}else if(pbean.getLevel().equals("sche")) {
 
-			String sql = "update todo_"+userid+" set title=?,content=?,date=?,hold=? where id=?";
+			String sql = "update todo_"+userid+" set title=?,content=?,date=?,hold=?,big=null,middle=null,level='sche' where id=?";
 			try(Connection conn = ResourceFinder.getConnection();
 					PreparedStatement pst = conn.prepareStatement(sql);){
 					pst.setString(1, pbean.getTitle());
@@ -851,7 +949,7 @@ public class SQLOperator {
 					pst.executeUpdate();
 					
 					//編集したデータをログ情報に入力
-			         sql = "insert into log_"+userid+"(id,ope,before_title,before_content,before_level,before_date,after_title,after_content,after_level,after_date,hold) values(?,?,?,?,?,?,?,?,?,?,?)";
+			         sql = "insert into log_"+userid+"(id,ope,before_title,before_content,before_level,before_date,before_big,before_middle,after_title,after_content,after_level,after_date,beforehold,hold) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			         try(PreparedStatement pstl = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);){
 			        	 pstl.setInt(1, logbean.getId());
 			        	 pstl.setString(2, logbean.getOpe());
@@ -859,11 +957,14 @@ public class SQLOperator {
 			        	 pstl.setString(4, logbean.getBefore_content());
 			        	 pstl.setString(5, logbean.getBefore_level());
 			        	 pstl.setString(6, logbean.getBefore_date());
-			        	 pstl.setString(7, logbean.getAfter_title());
-			        	 pstl.setString(8, logbean.getAfter_content());
-			        	 pstl.setString(9, logbean.getAfter_level());
-			        	 pstl.setString(10, logbean.getAfter_date());
-			        	 pstl.setBoolean(11, logbean.getHold());
+			        	 pstl.setInt(7, logbean.getBefore_big());
+			        	 pstl.setInt(8, logbean.getBefore_middle());
+			        	 pstl.setString(9, logbean.getAfter_title());
+			        	 pstl.setString(10, logbean.getAfter_content());
+			        	 pstl.setString(11, logbean.getAfter_level());
+			        	 pstl.setString(12, logbean.getAfter_date());
+			        	 pstl.setBoolean(13, logbean.getBeforehold());
+			        	 pstl.setBoolean(14, logbean.getHold());
 			        	 pstl.executeUpdate();
 			        	 
 
@@ -879,7 +980,8 @@ public class SQLOperator {
 				         System.out.println(newlogid);
 
 				         lrs.close();
-
+				         
+				         //スケジュール書き換え後の週スケジュールを再取得
 							sql = "select * from todo_"+userid+" where level='sche' and date between date_add(curdate(),interval 1 day) and date_add(curdate(),interval 7 day) order by date";
 							try(Statement st = conn.createStatement();){
 								
@@ -912,6 +1014,47 @@ public class SQLOperator {
 				e.printStackTrace();
 			}
 		}
+		
+		
+		
+		//更新前が中目標で更新後が中目標以外のとき、下目標の上,中を削除して保留へ
+		if(logbean.getBefore_level().equals("middle") && !(logbean.getAfter_level().equals("middle"))) {
+			String sql = "update todo_"+userid+" set big=null,middle=null,hold=true where middle=?";
+			try(Connection conn = ResourceFinder.getConnection();
+					PreparedStatement pst = conn.prepareStatement(sql);){
+					pst.setInt(1, logbean.getId());
+					pst.executeUpdate();
+					}catch(Exception e) {
+						e.printStackTrace();
+					}
+		}
+		
+		//大目標を大目標のまま保留中にしたとき、中、下目標もそのまま保留中へ
+		if(logbean.getBefore_level().equals("big") && logbean.getAfter_level().equals("big") && logbean.getHold()==true) {
+			String sql = "update todo_"+userid+" set hold=true where big=?";
+			try(Connection conn = ResourceFinder.getConnection();
+					PreparedStatement pst = conn.prepareStatement(sql);){
+					pst.setInt(1, logbean.getId());
+					pst.executeUpdate();
+					}catch(Exception e) {
+						e.printStackTrace();
+					}
+		}
+		
+		//更新前が大目標で更新後が大目標以外のとき、中、下目標の上を削除して保留へ
+		if(logbean.getBefore_level().equals("big") && !(logbean.getAfter_level().equals("big"))) {
+			String sql = "update todo_"+userid+" set big=null,middle=null,hold=true where big=?";
+			try(Connection conn = ResourceFinder.getConnection();
+					PreparedStatement pst = conn.prepareStatement(sql);){
+					pst.setInt(1, logbean.getId());
+					pst.executeUpdate();
+					}catch(Exception e) {
+						e.printStackTrace();
+					}
+		
+			
+		}
+		
 		
 			try(Connection conn = ResourceFinder.getConnection();
 					Statement st = conn.createStatement()){
@@ -1168,7 +1311,7 @@ public class SQLOperator {
 	}
 	
 	// 削除されたデータを戻す処理
-	public static boolean setDeleteData(PlanBean bean,LogBean logbean,ArrayList<PlanBean> weekarray,String userid) {
+	public static boolean setDeleteData(PlanBean bean,LogBean logbean,ArrayList<PlanBean> weekarray,String userid,boolean beforeBig,boolean beforeMiddle) {
 		boolean result = false;
 		
 		if(bean.getLevel().equals("big")) { 
@@ -1221,15 +1364,27 @@ public class SQLOperator {
 			
 		}else if(bean.getLevel().equals("middle")) {
 			//中目標入力時
-			String sql = "insert into todo_"+userid+"(id,title,content,level,big,hold) values(?,?,?,?,?,?)";
+			String sql;
+			if(beforeBig == true) {
+				sql = "insert into todo_"+userid+"(id,title,content,level,big,hold) values(?,?,?,?,?,?)";
+			}else {
+				sql = "insert into todo_"+userid+"(id,title,content,level,hold) values(?,?,?,?,?)";
+			}
 			try (Connection conn = ResourceFinder.getConnection();
 					PreparedStatement pst = conn.prepareStatement(sql);){
 				pst.setInt(1, bean.getId());
 				pst.setString(2, bean.getTitle());
 				pst.setString(3, bean.getContent());
 				pst.setString(4, bean.getLevel());
-				pst.setInt(5, bean.getBig());
-				pst.setBoolean(6, bean.isHold());
+				if(beforeBig == true) 
+				{
+					pst.setInt(5, bean.getBig());
+					pst.setBoolean(6, bean.isHold());
+					
+				}else 
+				{
+					pst.setBoolean(5, bean.isHold());
+				}
 				pst.executeUpdate();
 				
 		         
@@ -1268,16 +1423,30 @@ public class SQLOperator {
 			
 		}else if(bean.getLevel().equals("small")) { 
 			//小目標入力時
-			String sql = "insert into todo_"+userid+"(id,title,content,level,big,middle,hold) values(?,?,?,?,?,?,?)";
+			String sql;
+			if(beforeBig == true) 
+			{
+				sql = "insert into todo_"+userid+"(id,title,content,level,big,middle,hold) values(?,?,?,?,?,?,?)";
+			}else
+			{
+				sql = "insert into todo_"+userid+"(id,title,content,level,hold) values(?,?,?,?,?)";
+			}
 			try (Connection conn = ResourceFinder.getConnection();
 					PreparedStatement pst = conn.prepareStatement(sql);){
 				pst.setInt(1, bean.getId());
 				pst.setString(2, bean.getTitle());
 				pst.setString(3, bean.getContent());
 				pst.setString(4, bean.getLevel());
-				pst.setInt(5, bean.getBig());
-				pst.setInt(6, bean.getMiddle());
-				pst.setBoolean(7, bean.isHold());
+				if(beforeBig == true)
+				{
+					pst.setInt(5, bean.getBig());
+					pst.setInt(6, bean.getMiddle());
+					pst.setBoolean(7, bean.isHold());
+						
+				}else
+				{
+					pst.setBoolean(5, bean.isHold());
+				}
 				pst.executeUpdate();
 				
 		         sql = "insert into log_"+userid+"(id,ope,after_title,after_content,after_level,after_big,after_middle,hold) values(?,?,?,?,?,?,?,?)";
@@ -1289,7 +1458,7 @@ public class SQLOperator {
 		        	 pstl.setString(5, logbean.getAfter_level());
 		        	 pstl.setInt(6, logbean.getAfter_big());
 		        	 pstl.setInt(7, logbean.getAfter_middle());
-		        	 pstl.setBoolean(9, logbean.getHold());
+		        	 pstl.setBoolean(8, logbean.getHold());
 		        	 pstl.executeUpdate();
 		        	 
 

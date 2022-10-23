@@ -42,6 +42,7 @@ public class resetController extends HttpServlet {
 	 */
 	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
 		// TODO Auto-generated method stub
+		request.setCharacterEncoding("UTF-8");
 		
 		//リセットする更新データのログIDを取得
 		int logid = Integer.parseInt(request.getParameter("logid"));
@@ -60,6 +61,10 @@ public class resetController extends HttpServlet {
 		
 		//リセット後のPlanBean
 		PlanBean rabean = new PlanBean();
+		
+		//再挿入、更新時に前の上中位目標があるか判定
+		boolean beforeBig = false;
+		boolean beforeMiddle = false;
 		
 		for(int i=0;i<logArray.size();i++) {
 			if(logid == logArray.get(i).getLogid()) {
@@ -83,9 +88,12 @@ public class resetController extends HttpServlet {
 				
 			}else if(blogbean.getAfter_level().equals("middle")) {
 				alogbean.setBefore_big(blogbean.getAfter_big());
+				alogbean.setBefore_big_title(blogbean.getAfter_big_title());
 			}else if(blogbean.getAfter_level().equals("small")) {
 				alogbean.setBefore_big(blogbean.getAfter_big());
+				alogbean.setBefore_big_title(blogbean.getAfter_big_title());
 				alogbean.setBefore_middle(blogbean.getAfter_middle());
+				alogbean.setBefore_middle_title(blogbean.getAfter_middle_title());
 			}else if(blogbean.getAfter_level().equals("sche")) {
 				alogbean.setBefore_date(blogbean.getAfter_date());
 			}
@@ -93,7 +101,7 @@ public class resetController extends HttpServlet {
 			int result = SQLOperator.deleteData(alogbean.getId(),lbean.getUserid(),alogbean.getBefore_level(),alogbean);
 			
 
-			//削除前のログをセッション情報に設定
+			//削除処理のログをセッション情報に設定
 			Collections.reverse(logArray);
 			logArray.add(alogbean);
 			session.setAttribute("logarray", logArray);
@@ -115,13 +123,13 @@ public class resetController extends HttpServlet {
 							break;
 						}
 					}
-					//セッション中、小目標から上位データを削除
+					//セッション中、小目標から上位データを削除し保留へ
 					
 					for(int i=0;i<middleArray.size();i++) {
 						if(alogbean.getId() == middleArray.get(i).getBig()) {
 							middleArray.get(i).setBig(0);
 							middleArray.get(i).setBig_title("");
-							middleArray.get(i).setHold(false);
+							middleArray.get(i).setHold(true);
 							result--;
 							
 						}
@@ -133,7 +141,7 @@ public class resetController extends HttpServlet {
 						if(alogbean.getId() == smallArray.get(i).getBig()) {
 							smallArray.get(i).setBig(0);
 							smallArray.get(i).setBig_title("");
-							smallArray.get(i).setHold(false);
+							smallArray.get(i).setHold(true);
 							result--;
 						}
 						if(result==0 || result==99999) {
@@ -151,20 +159,22 @@ public class resetController extends HttpServlet {
 					@SuppressWarnings("unchecked")
 					ArrayList<PlanBean> smallArray = (ArrayList<PlanBean>) session.getAttribute("smallarray");
 					
+					//セッションの中目標から削除
 					for(int i=0;i<middleArray.size();i++) {
 						if(alogbean.getId() == middleArray.get(i).getId()) {
 							middleArray.remove(i);
 							break;
 						}
 					}
-
+					
+					//セッションの小目標から中目標以上を削除し保留
 					for(int i=0;i<smallArray.size();i++) {
 						if(alogbean.getId() == smallArray.get(i).getMiddle()) {
 							smallArray.get(i).setBig(0);
 							smallArray.get(i).setMiddle(0);
 							smallArray.get(i).setBig_title("");
 							smallArray.get(i).setMiddle_title("");
-							smallArray.get(i).setHold(false);
+							smallArray.get(i).setHold(true);
 							result--;
 						}
 						if(result==0 || result==99999) {
@@ -243,7 +253,11 @@ public class resetController extends HttpServlet {
 			
 			
 		}else if(blogbean.getOpe().equals("delete")) { //過去に削除したデータを挿入し直す
-			
+
+			@SuppressWarnings("unchecked")
+			ArrayList<PlanBean> bigArray = (ArrayList<PlanBean>) session.getAttribute("bigarray");
+			@SuppressWarnings("unchecked")
+			ArrayList<PlanBean> middleArray = (ArrayList<PlanBean>) session.getAttribute("middlearray");
 				
 			//リセット後のセッションログ情報
 			alogbean.setOpe("insert");
@@ -259,70 +273,84 @@ public class resetController extends HttpServlet {
 			rabean.setContent(blogbean.getBefore_content());
 			rabean.setTitle(blogbean.getBefore_title());
 			
-			if(blogbean.getBefore_level().equals("big")) {
+			if(blogbean.getBefore_level().equals("big")) 
+			{
 				
-			}else if(blogbean.getBefore_level().equals("middle")) {
-				alogbean.setAfter_big(blogbean.getBefore_big());
-			}else if(blogbean.getBefore_level().equals("small")) {
-				alogbean.setAfter_big(blogbean.getBefore_big());
-				alogbean.setAfter_middle(blogbean.getBefore_middle());
-			}else if(blogbean.getBefore_level().equals("sche")) {
+			}else if(blogbean.getBefore_level().equals("middle")) 
+			{ //中目標を削除前に戻すとき
+				for(int i=0;i<bigArray.size();i++) {
+					if(blogbean.getBefore_big() == bigArray.get(i).getId()) {
+						//元の上目標が残っていれば設定
+						alogbean.setAfter_big(bigArray.get(i).getId());
+						alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+						rabean.setBig(bigArray.get(i).getId());
+						rabean.setBig_title(bigArray.get(i).getTitle());
+						//元保留なしデータは元の中目標に合わせて保留状態を設定
+						if(alogbean.getHold()==false) {
+							alogbean.setHold(bigArray.get(i).isHold());
+							rabean.setHold(bigArray.get(i).isHold());
+						}
+						beforeBig = true;
+
+					}
+				}
+
+				if(beforeBig == false) 
+				{ //上中位目標が見つからないときは保留状態に
+					alogbean.setHold(true);
+					rabean.setHold(true);
+				}
+			}else if(blogbean.getBefore_level().equals("small")) 
+			{ //小目標を削除前に戻すとき
+				
+				for(int i=0;i<bigArray.size();i++) 
+				{
+					if(blogbean.getBefore_big() == bigArray.get(i).getId())
+					{
+						
+						for(int j=0;j<middleArray.size();j++)
+						{
+							if(blogbean.getBefore_middle() == middleArray.get(j).getId())
+							{ 
+								//元の上目標が残っていれば設定
+								alogbean.setAfter_big(bigArray.get(i).getId());
+								alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+								rabean.setBig(bigArray.get(i).getId());
+								rabean.setBig_title(bigArray.get(i).getTitle());
+								beforeBig = true;
+								//元の中位目標が残っていれば設定
+								alogbean.setAfter_middle(middleArray.get(j).getId());
+								alogbean.setAfter_middle_title(middleArray.get(j).getTitle());
+								rabean.setMiddle(middleArray.get(j).getId());
+								rabean.setMiddle_title(middleArray.get(j).getTitle());
+								//元保留なしデータは元の中目標に合わせて保留状態を設定
+								if(alogbean.getHold()==false) {
+									alogbean.setHold(middleArray.get(j).isHold());
+									rabean.setHold(middleArray.get(j).isHold());
+								}
+								beforeMiddle = true;
+								
+							}
+						}
+						
+					}
+						
+				}
+				
+				if(beforeBig == false) 
+				{ //上中位目標が見つからないときは保留状態に
+					alogbean.setHold(true);
+					rabean.setHold(true);
+				}
+				
+				System.out.println(beforeBig+"どうなっとんねん"+rabean.isHold());
+				
+			}else if(blogbean.getBefore_level().equals("sche")) 
+			{ //スケジュールを削除前に戻すとき
 				alogbean.setAfter_date(blogbean.getBefore_date());
+				rabean.setDate(blogbean.getBefore_date());
 			}
 			
-
-			@SuppressWarnings("unchecked")
-			ArrayList<PlanBean> bigArray = (ArrayList<PlanBean>) session.getAttribute("bigarray");
-			@SuppressWarnings("unchecked")
-			ArrayList<PlanBean> middleArray = (ArrayList<PlanBean>) session.getAttribute("middlearray");
-			
-			
-			
-			//中目標以下を入れるとき大目標を取得
-			if(alogbean.getAfter_level().equals("middle")) {
-				int big = alogbean.getAfter_big();
-				rabean.setBig(big);
-				
-				for(PlanBean b:bigArray) {
-					if(rabean.getBig() == b.getId()) {
-						rabean.setBig_title(b.getTitle());
-						alogbean.setAfter_big_title(b.getTitle());
-					break;
-					}
-				}
-				
-			}
-			//小目標を入れるとき中目標を取得
-			if(alogbean.getAfter_level().equals("small")) {
-				int middle = alogbean.getAfter_middle();
-				int big = alogbean.getAfter_big();
-				rabean.setMiddle(middle);
-				rabean.setBig(big);
-
-				for(PlanBean b:bigArray) {
-					System.out.println("大のID"+b.getId());
-					if(rabean.getBig() == b.getId()) {
-						rabean.setBig_title(b.getTitle());
-						alogbean.setAfter_big_title(b.getTitle());
-					break;
-					}
-				}
-				
-				for(PlanBean m:middleArray) {
-					System.out.println("中のID"+m.getId());
-					if(rabean.getMiddle() == m.getId()) {
-						rabean.setMiddle_title(m.getTitle());
-						alogbean.setAfter_middle_title(m.getTitle());
-					break;
-					}
-				}
-			}
-			
-			//予定を入れるとき年月日を取得
-			if(alogbean.getAfter_level().equals("sche")) {
-				String date = alogbean.getAfter_date();
-				rabean.setDate(date);
-			}
 			
 			//スケジュール変更時、weekarrayをセットし直す
 			if(alogbean.getAfter_level().equals("sche")) {
@@ -331,7 +359,7 @@ public class resetController extends HttpServlet {
 			ArrayList<PlanBean> weekArray = new ArrayList<>(); 
 
 			//削除したデータをデータベースに再度登録
-			boolean result = SQLOperator.setDeleteData(rabean,alogbean,weekArray,lbean.getUserid());
+			boolean result = SQLOperator.setDeleteData(rabean,alogbean,weekArray,lbean.getUserid(),beforeBig,beforeMiddle);
 
 			//sessionに情報を再セット
 			if(result) {
@@ -350,31 +378,26 @@ public class resetController extends HttpServlet {
 					smallArray.add(rabean);
 					session.setAttribute("smallarray", smallArray);
 					
-				}else if(alogbean.getAfter_level().equals("sche")) {
+				}else if(alogbean.getAfter_level().equals("sche")) 
+				{
 					Calendar cal = Calendar.getInstance();
 		
 					if(
 						Integer.parseInt(rabean.getDate().substring(0,4))  == cal.get(Calendar.YEAR) &&
 						Integer.parseInt(rabean.getDate().substring(5,7)) == cal.get(Calendar.MONTH)+1 &&
-						Integer.parseInt(rabean.getDate().substring(8,10)) == cal.get(Calendar.DATE)) {
+						Integer.parseInt(rabean.getDate().substring(8,10)) == cal.get(Calendar.DATE)) 
+					{ //当日のスケジュールは当日のデータ配列に追加
 						@SuppressWarnings("unchecked")
 						ArrayList<PlanBean> todayArray = (ArrayList<PlanBean>) session.getAttribute("todayarray");
 						todayArray.add(rabean);
 						session.setAttribute("todayarray", todayArray);
-						@SuppressWarnings("unchecked")
-						ArrayList<PlanBean> scheArray = (ArrayList<PlanBean>) session.getAttribute("schearray");
-						scheArray.add(rabean);
-						session.setAttribute("schearray", scheArray);
-							
 						
-					}else {
+					}
+					
 					@SuppressWarnings("unchecked")
 					ArrayList<PlanBean> scheArray = (ArrayList<PlanBean>) session.getAttribute("schearray");
 					scheArray.add(rabean);
 					session.setAttribute("schearray", scheArray);
-						
-					}
-					
 					session.setAttribute("weekarray", weekArray);
 				}
 				//ログデータをセッション情報に登録
@@ -406,7 +429,8 @@ public class resetController extends HttpServlet {
 			//更新後のログ情報、planbeanを設定
 			alogbean.setId(blogbean.getId());
 			alogbean.setOpe("update");
-			alogbean.setHold(blogbean.getHold());
+			alogbean.setBeforehold(blogbean.getHold());
+			alogbean.setHold(blogbean.getBeforehold());
 			alogbean.setAfter_level(blogbean.getBefore_level());
 			alogbean.setBefore_level(blogbean.getAfter_level());
 			alogbean.setAfter_title(blogbean.getBefore_title());
@@ -415,67 +439,257 @@ public class resetController extends HttpServlet {
 			alogbean.setBefore_content(blogbean.getAfter_content());
 			
 			rabean.setId(blogbean.getId());
-			rabean.setHold(blogbean.getHold());
+			rabean.setHold(blogbean.getBeforehold());
 			rabean.setLevel(blogbean.getBefore_level());
 			rabean.setTitle(blogbean.getBefore_title());
 			rabean.setContent(blogbean.getBefore_content());
-
-			if(blogbean.getBefore_level().equals("big")) {
+			
+			if(blogbean.getBefore_level().equals("big")) { 
+				if(blogbean.getAfter_level().equals("big")) { //大目標から大目標へリセット
+					
+				}else if(blogbean.getAfter_level().equals("middle")) {//中目標から大目標へリセット
+					alogbean.setBefore_big(blogbean.getAfter_big());
+					
+					//変更前の上目標タイトルを取得
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getBefore_big() == bigArray.get(i).getId()) {
+							alogbean.setBefore_big_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+				}else if(blogbean.getAfter_level().equals("small")) {//小目標から大目標へリセット
+					alogbean.setBefore_big(blogbean.getAfter_big());
+					alogbean.setBefore_middle(blogbean.getAfter_middle());
+					
+					//変更前の上中目標タイトルを取得
+					for(int i=0;i<middleArray.size();i++) {
+						if(alogbean.getBefore_middle() == middleArray.get(i).getId()) {
+							alogbean.setBefore_middle_title(middleArray.get(i).getTitle());
+						}
+					}
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getBefore_big() == bigArray.get(i).getId()) {
+							alogbean.setBefore_big_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+					
+				}else if(blogbean.getAfter_level().equals("sche")) {//スケジュールから大目標へリセット
+					alogbean.setBefore_date(blogbean.getAfter_date());
+				}
 				
 			}else if(blogbean.getBefore_level().equals("middle")) {
-				alogbean.setAfter_big(blogbean.getBefore_big());
-				alogbean.setBefore_big(blogbean.getAfter_big());
+				if(blogbean.getAfter_level().equals("big")) { //大目標から中目標へリセット
+					alogbean.setAfter_big(blogbean.getBefore_big());
+					
+					//変更後の上目標タイトルを取得
+					rabean.setBig(alogbean.getAfter_big());
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getAfter_big() == bigArray.get(i).getId()) {
+							alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+							rabean.setBig_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+				}else if(blogbean.getAfter_level().equals("middle")) {//中目標から中目標へリセット
+					alogbean.setAfter_big(blogbean.getBefore_big());
+					alogbean.setBefore_big(blogbean.getAfter_big());
+					
+					//変更前、変更後の上目標タイトルを取得
+					rabean.setBig(alogbean.getAfter_big());
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getAfter_big() == bigArray.get(i).getId()) {
+							alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+							rabean.setBig_title(bigArray.get(i).getTitle());
+						}
+						if(alogbean.getBefore_big() == bigArray.get(i).getId()) {
+							alogbean.setBefore_big_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+				}else if(blogbean.getAfter_level().equals("small")){//小目標から中目標へリセット
+					alogbean.setAfter_big(blogbean.getBefore_big());
+					alogbean.setBefore_big(blogbean.getAfter_big());
+					alogbean.setBefore_middle(blogbean.getAfter_middle());
+					
+					//変更前、変更後の上中目標タイトルを取得
+					for(int i=0;i<middleArray.size();i++) {
+						if(alogbean.getBefore_middle() == middleArray.get(i).getId()) {
+							alogbean.setBefore_middle_title(middleArray.get(i).getTitle());
+						}
+					}
+					rabean.setBig(alogbean.getAfter_big());
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getAfter_big() == bigArray.get(i).getId()) {
+							alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+							rabean.setBig_title(bigArray.get(i).getTitle());
+						}
+						if(alogbean.getBefore_big() == bigArray.get(i).getId()) {
+							alogbean.setBefore_big_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+					
+				}else if(blogbean.getAfter_level().equals("sche")) {//スケジュールから中目標へリセット
+					alogbean.setAfter_big(blogbean.getBefore_big());
+					alogbean.setBefore_date(blogbean.getAfter_date());
+					
+					//変更後の上目標タイトルを取得
+					rabean.setBig(alogbean.getAfter_big());
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getAfter_big() == bigArray.get(i).getId()) {
+							alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+							rabean.setBig_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+				}
 			}else if(blogbean.getBefore_level().equals("small")) {
-				alogbean.setAfter_big(blogbean.getBefore_big());
-				alogbean.setAfter_middle(blogbean.getBefore_middle());
-				alogbean.setBefore_big(blogbean.getAfter_big());
-				alogbean.setBefore_middle(blogbean.getAfter_middle());
+				if(blogbean.getAfter_level().equals("big")) {//大目標から小目標へリセット
+					alogbean.setAfter_big(blogbean.getBefore_big());
+					alogbean.setAfter_middle(blogbean.getBefore_middle());
+					
+					//変更後の上中目標タイトルを取得
+					rabean.setMiddle(alogbean.getAfter_middle());
+					for(int i=0;i<middleArray.size();i++) {
+						if(alogbean.getAfter_middle() == middleArray.get(i).getId()) {
+							alogbean.setAfter_middle_title(middleArray.get(i).getTitle());
+							rabean.setMiddle_title(middleArray.get(i).getTitle());
+						}
+					}
+					rabean.setBig(alogbean.getAfter_big());
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getAfter_big() == bigArray.get(i).getId()) {
+							alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+							rabean.setBig_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+					
+				}else if(blogbean.getAfter_level().equals("middle")) {//中目標から小目標へリセット
+					alogbean.setAfter_big(blogbean.getBefore_big());
+					alogbean.setAfter_middle(blogbean.getBefore_middle());
+					alogbean.setBefore_big(blogbean.getAfter_big());
+					
+					//変更前、変更後の上中目標タイトルを取得
+					rabean.setMiddle(alogbean.getAfter_middle());
+					for(int i=0;i<middleArray.size();i++) {
+						if(alogbean.getAfter_middle() == middleArray.get(i).getId()) {
+							alogbean.setAfter_middle_title(middleArray.get(i).getTitle());
+							rabean.setMiddle_title(middleArray.get(i).getTitle());
+						}
+					}
+					rabean.setBig(alogbean.getAfter_big());
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getAfter_big() == bigArray.get(i).getId()) {
+							alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+							rabean.setBig_title(bigArray.get(i).getTitle());
+						}
+						if(alogbean.getBefore_big() == bigArray.get(i).getId()) {
+							alogbean.setBefore_big_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+					
+				}else if(blogbean.getAfter_level().equals("small")){//小目標から小目標へリセット
+						
+					alogbean.setAfter_big(blogbean.getBefore_big());
+					alogbean.setAfter_middle(blogbean.getBefore_middle());
+					alogbean.setBefore_big(blogbean.getAfter_big());
+					alogbean.setBefore_middle(blogbean.getAfter_middle());
+					
+					//変更前、変更後の上中目標タイトルを取得
+					rabean.setMiddle(alogbean.getAfter_middle());
+					for(int i=0;i<middleArray.size();i++) {
+						if(alogbean.getAfter_middle() == middleArray.get(i).getId()) {
+							alogbean.setAfter_middle_title(middleArray.get(i).getTitle());
+							rabean.setMiddle_title(middleArray.get(i).getTitle());
+						}
+						if(alogbean.getBefore_middle() == middleArray.get(i).getId()) {
+							alogbean.setBefore_middle_title(middleArray.get(i).getTitle());
+						}
+					}
+					rabean.setBig(alogbean.getAfter_big());
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getAfter_big() == bigArray.get(i).getId()) {
+							alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+							rabean.setBig_title(bigArray.get(i).getTitle());
+						}
+						if(alogbean.getBefore_big() == bigArray.get(i).getId()) {
+							alogbean.setBefore_big_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+					
+				}else if(blogbean.getAfter_level().equals("sche")) {//スケジュールから小目標へリセット
+					alogbean.setAfter_big(blogbean.getBefore_big());
+					alogbean.setAfter_middle(blogbean.getBefore_middle());
+					alogbean.setBefore_date(blogbean.getAfter_date());
+					
+					//変更後の上中目標タイトルを取得
+					rabean.setMiddle(alogbean.getAfter_middle());
+					for(int i=0;i<middleArray.size();i++) {
+						if(alogbean.getAfter_middle() == middleArray.get(i).getId()) {
+							alogbean.setAfter_middle_title(middleArray.get(i).getTitle());
+							rabean.setMiddle_title(middleArray.get(i).getTitle());
+						}
+					}
+					rabean.setBig(alogbean.getAfter_big());
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getAfter_big() == bigArray.get(i).getId()) {
+							alogbean.setAfter_big_title(bigArray.get(i).getTitle());
+							rabean.setBig_title(bigArray.get(i).getTitle());
+						}
+					}
+					
+				}
 			}else if(blogbean.getBefore_level().equals("sche")) {
-				alogbean.setAfter_date(blogbean.getBefore_date());
-				alogbean.setBefore_date(blogbean.getAfter_date());
-			}
-			
-			if(alogbean.getAfter_level().equals("middle")) { //中目標選択時の大目標データ取得
-				int bbig = alogbean.getBefore_big();
-				int abig = alogbean.getAfter_big();
-				rabean.setBig(abig);
-				for(int i=0;i<bigArray.size();i++) {
-					if(abig == bigArray.get(i).getId()) {
-						alogbean.setAfter_big_title(bigArray.get(i).getTitle());
-						rabean.setBig_title(bigArray.get(i).getTitle());
+				if(blogbean.getAfter_level().equals("big")) {//大目標からスケジュールへリセット
+					alogbean.setAfter_date(blogbean.getBefore_date());
+					rabean.setDate(alogbean.getAfter_date());
+					
+				}else if(blogbean.getAfter_level().equals("middle")) {//中目標からスケジュールへリセット
+					alogbean.setAfter_date(blogbean.getBefore_date());
+					rabean.setDate(alogbean.getAfter_date());
+					alogbean.setBefore_big(blogbean.getAfter_big());
+					
+					//変更前の上目標タイトルを取得
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getBefore_big() == bigArray.get(i).getId()) {
+							alogbean.setBefore_big_title(bigArray.get(i).getTitle());
+						}
 					}
-					if(bbig == bigArray.get(i).getId()) {
-						alogbean.setBefore_big_title(bigArray.get(i).getTitle());
+					
+					
+				}else if(blogbean.getAfter_level().equals("small")){//小目標からスケジュールへリセット
+					alogbean.setAfter_date(blogbean.getBefore_date());
+					rabean.setDate(alogbean.getAfter_date());
+					alogbean.setBefore_big(blogbean.getAfter_big());
+					alogbean.setBefore_middle(blogbean.getAfter_middle());
+					
+					//変更前の上中目標タイトルを取得
+					for(int i=0;i<middleArray.size();i++) {
+						if(alogbean.getBefore_middle() == middleArray.get(i).getId()) {
+							alogbean.setBefore_middle_title(middleArray.get(i).getTitle());
+						}
 					}
-				}
-			}else if(alogbean.getAfter_level().equals("small")) {
-				int bmiddle = alogbean.getBefore_middle();
-				int amiddle = alogbean.getAfter_middle();
-				rabean.setMiddle(amiddle);
-				for(int i=0;i<middleArray.size();i++) {
-					if(amiddle == middleArray.get(i).getId()) {
-						alogbean.setAfter_middle_title(middleArray.get(i).getTitle());
-						rabean.setMiddle_title(middleArray.get(i).getTitle());
+					for(int i=0;i<bigArray.size();i++) {
+						if(alogbean.getBefore_big() == bigArray.get(i).getId()) {
+							alogbean.setBefore_big_title(bigArray.get(i).getTitle());
+						}
 					}
-					if(bmiddle == middleArray.get(i).getId()) {
-						alogbean.setBefore_middle_title(middleArray.get(i).getTitle());
-					}
-				}
-				int bbig = alogbean.getBefore_big();
-				int abig = alogbean.getAfter_big();
-				rabean.setBig(abig);
-				for(int i=0;i<bigArray.size();i++) {
-					if(abig == bigArray.get(i).getId()) {
-						alogbean.setAfter_big_title(bigArray.get(i).getTitle());
-						rabean.setBig_title(bigArray.get(i).getTitle());
-					}
-					if(bbig == bigArray.get(i).getId()) {
-						alogbean.setBefore_big_title(bigArray.get(i).getTitle());
-					}
+					
+					
+				}else if(blogbean.getAfter_level().equals("sche")) {//スケジュールからスケジュールへリセット
+					alogbean.setAfter_date(blogbean.getBefore_date());
+					alogbean.setBefore_date(blogbean.getAfter_date());
+					rabean.setDate(alogbean.getAfter_date());
 				}
 				
-			}else if(alogbean.getAfter_level().equals("sche")) {
-				rabean.setDate(alogbean.getAfter_date());
+			}
+			
+			if(alogbean.getAfter_level().equals("sche") || alogbean.getBefore_level().equals("sche")) {
+				
 				//スケジュール編集時週のデータも取得し直す
 				session.removeAttribute("weekarray");
 				weekArray = new ArrayList<>(); 
@@ -490,76 +704,281 @@ public class resetController extends HttpServlet {
 			if(result) {
 				
 				if(alogbean.getAfter_level().equals("big")) {
-					
-					for(int i=0;i<bigArray.size();i++) {
-						if(alogbean.getId() == bigArray.get(i).getId()) {
-							//セッションの大目標のデータを編集
-							bigArray.get(i).setTitle(alogbean.getAfter_title());
-							bigArray.get(i).setContent(alogbean.getAfter_content());
-							bigArray.get(i).setHold(alogbean.getHold());
-							break;
+					if(alogbean.getBefore_level().equals("big")) { //大目標から大目標への移動時
+						for(int i=0;i<bigArray.size();i++) {
+							if(alogbean.getId() == bigArray.get(i).getId()) {
+								//セッションの大目標のデータを編集
+								bigArray.get(i).setTitle(alogbean.getAfter_title());
+								bigArray.get(i).setContent(alogbean.getAfter_content());
+								bigArray.get(i).setHold(alogbean.getHold());
+								break;
+							}
 						}
-					}
-					//セッション中、小目標の上位データを編集
+						//セッション中、小目標の上位データを編集
 					
-					for(int i=0;i<middleArray.size();i++) {
-						if(alogbean.getId() == middleArray.get(i).getBig()) {
-							middleArray.get(i).setBig_title(alogbean.getAfter_big_title());
-							middleArray.get(i).setHold(alogbean.getHold());
+						for(int i=0;i<middleArray.size();i++) {
+							if(alogbean.getId() == middleArray.get(i).getBig()) {
+								middleArray.get(i).setBig_title(alogbean.getAfter_title());
+								if(alogbean.getHold()==true) //保留時のみ同時に保留
+									middleArray.get(i).setHold(alogbean.getHold());
+							}
+						}
+						for(int i=0;i<smallArray.size();i++) {
+							if(alogbean.getId() == smallArray.get(i).getBig()) {
+								smallArray.get(i).setBig_title(alogbean.getAfter_title());
+								if(alogbean.getHold()==true) //保留時のみ同時に保留
+									smallArray.get(i).setHold(alogbean.getHold());
+							}
+						}
 							
+					}else if(alogbean.getBefore_level().equals("middle")) {//中目標から大目標への移動時
+						bigArray.add(rabean); //大目標に追加
+
+						//中目標から削除
+
+						for(int i=0;i<middleArray.size();i++) {
+							if(alogbean.getId() == middleArray.get(i).getId()) {
+								middleArray.remove(i);
+								break;
+							}
+						}
+						for(int i=0;i<smallArray.size();i++) { //中目標下の小目標を保留に
+							if(alogbean.getId() == smallArray.get(i).getMiddle()) {
+								smallArray.get(i).setBig(0);
+								smallArray.get(i).setBig_title("");
+								smallArray.get(i).setMiddle(0);
+								smallArray.get(i).setMiddle_title("");
+								smallArray.get(i).setHold(true);
+							}
+						}
+					}else if(alogbean.getBefore_level().equals("small")) {//小目標から大目標への移動時
+						bigArray.add(rabean); //大目標に追加
+
+						for(int i=0;i<smallArray.size();i++) { //小目標から削除
+							if(alogbean.getId() == smallArray.get(i).getId()) {
+								smallArray.remove(i);
+								break;
+							}
+						}
+					}else if(alogbean.getBefore_level().equals("sche")) {//スケジュールから大目標への移動時
+						bigArray.add(rabean); //大目標に追加
+
+
+						@SuppressWarnings("unchecked")
+						ArrayList<PlanBean> todayArray = (ArrayList<PlanBean>) session.getAttribute("todayarray");
+						
+						
+						for(int i=0;i<todayArray.size();i++) { //当日のスケジュールから削除
+							if(alogbean.getId() == todayArray.get(i).getId()) {
+								todayArray.remove(i);
+								break;
+							}
+						}
+						session.setAttribute("todayarray", todayArray);
+						
+						for(int i=0;i<scheArray.size();i++) { 
+							if(alogbean.getId() == scheArray.get(i).getId()) {
+								scheArray.remove(i); //スケジュールから削除
+								break;
+							}
 						}
 					}
-					for(int i=0;i<smallArray.size();i++) {
-						if(alogbean.getId() == smallArray.get(i).getBig()) {
-							smallArray.get(i).setBig_title(alogbean.getAfter_big_title());
-							smallArray.get(i).setHold(alogbean.getHold());
-						}
-					}
+					
+					
 					
 				}else if(alogbean.getAfter_level().equals("middle")) {
-					
-					
-					for(int i=0;i<middleArray.size();i++) {
-						if(alogbean.getId() == middleArray.get(i).getId()) {
-							//セッションの中目標の上位データ、上位タイトル、タイトル、内容を編集
-							middleArray.get(i).setTitle(alogbean.getAfter_title());
-							middleArray.get(i).setContent(alogbean.getAfter_content());
-							middleArray.get(i).setBig(alogbean.getAfter_big());
-							middleArray.get(i).setBig_title(alogbean.getAfter_big_title());
-							middleArray.get(i).setHold(alogbean.getHold());
-							break;
+					if(alogbean.getBefore_level().equals("big")) { //大目標から中目標への移動時
+						for(int i=0;i<bigArray.size();i++) { //大目標から削除
+							if(alogbean.getId() == bigArray.get(i).getId()) {
+								bigArray.remove(i);
+								break;
+							}
 						}
-					}
-					//セッションの小目標の上位データ、上位タイトル、中位データ、中位タイトルを編集
-					for(int i=0;i<smallArray.size();i++) {
-						if(alogbean.getId() == smallArray.get(i).getMiddle()) {
-							smallArray.get(i).setMiddle(alogbean.getId());
-							smallArray.get(i).setMiddle_title(alogbean.getAfter_middle_title());
-							smallArray.get(i).setBig_title(alogbean.getAfter_big_title());
-							smallArray.get(i).setBig(alogbean.getAfter_big());
-							smallArray.get(i).setHold(alogbean.getHold());
+						
+						middleArray.add(rabean); //中目標へ追加
+						
+						for(int i=0;i<middleArray.size();i++) { //大目標下の中目標を保留に
+							if(alogbean.getId() == middleArray.get(i).getBig()) {
+								middleArray.get(i).setBig(0);
+								middleArray.get(i).setBig_title("");
+								middleArray.get(i).setHold(true);
+							}
 						}
+						
+						for(int i=0;i<smallArray.size();i++) { //大目標下の小目標を保留に
+							if(alogbean.getId() == smallArray.get(i).getBig()) {
+								smallArray.get(i).setBig(0);
+								smallArray.get(i).setBig_title("");
+								smallArray.get(i).setMiddle(0);
+								smallArray.get(i).setMiddle_title("");
+								smallArray.get(i).setHold(true);
+							}
+						}
+						
+					
+						
+					}else if(alogbean.getBefore_level().equals("middle")) { //中目標から中目標へ移動時
+						for(int i=0;i<middleArray.size();i++) {
+							if(alogbean.getId() == middleArray.get(i).getId()) {
+								//セッションの中目標の上位データ、上位タイトル、タイトル、内容を編集
+								middleArray.get(i).setTitle(alogbean.getAfter_title());
+								middleArray.get(i).setContent(alogbean.getAfter_content());
+								middleArray.get(i).setBig(alogbean.getAfter_big());
+								middleArray.get(i).setBig_title(alogbean.getAfter_big_title());
+								middleArray.get(i).setHold(alogbean.getHold());
+								break;
+							}
+						}
+						//セッションの小目標の上位データ、上位タイトル、中位データ、中位タイトルを編集
+						for(int i=0;i<smallArray.size();i++) {
+							if(alogbean.getId() == smallArray.get(i).getMiddle()) {
+								smallArray.get(i).setMiddle(alogbean.getId());
+								smallArray.get(i).setMiddle_title(alogbean.getAfter_title());
+								smallArray.get(i).setBig_title(alogbean.getAfter_big_title());
+								smallArray.get(i).setBig(alogbean.getAfter_big());
+								if(alogbean.getHold()==true) //保留時のみ同時に保留
+									smallArray.get(i).setHold(alogbean.getHold());
+							}
+						}
+						
+						
+						
+					}else if(alogbean.getBefore_level().equals("small")) { //小目標から中目標への移動時
+						middleArray.add(rabean); //中目標へ追加
+						
+						for(int i=0;i<smallArray.size();i++) { //小目標から削除
+							if(alogbean.getId() == smallArray.get(i).getId()) {
+								smallArray.remove(i);
+								break;
+							}
+						}
+						
+					
+						
+					}else if(alogbean.getBefore_level().equals("sche")) { //スケジュールから中目標への移動時
+						middleArray.add(rabean); //中目標に追加
+
+
+						@SuppressWarnings("unchecked")
+						ArrayList<PlanBean> todayArray = (ArrayList<PlanBean>) session.getAttribute("todayarray");
+						
+						
+						for(int i=0;i<todayArray.size();i++) { //当日のスケジュールから削除
+							if(alogbean.getId() == todayArray.get(i).getId()) {
+								todayArray.remove(i);
+								break;
+							}
+						}
+						session.setAttribute("todayarray", todayArray);
+						
+						for(int i=0;i<scheArray.size();i++) { 
+							if(alogbean.getId() == scheArray.get(i).getId()) {
+								scheArray.remove(i); //スケジュールから削除
+								break;
+							}
+						}
+					
+						
 					}
+					
 					
 				
 				}else if(alogbean.getAfter_level().equals("small")) {
-					
-					for(int i=0;i<smallArray.size();i++) {
-						if(alogbean.getId() == smallArray.get(i).getId()) {
-							//セッションの小目標データを編集
-							smallArray.get(i).setTitle(alogbean.getAfter_title());
-							smallArray.get(i).setContent(alogbean.getAfter_content());
-							smallArray.get(i).setBig(rabean.getBig());
-							smallArray.get(i).setBig_title(rabean.getBig_title());
-							smallArray.get(i).setMiddle(rabean.getMiddle());
-							smallArray.get(i).setMiddle_title(rabean.getMiddle_title());
-							smallArray.get(i).setHold(rabean.isHold());
-							break;
+					if(alogbean.getBefore_level().equals("big")) { //大目標から小目標へ移動
+						for(int i=0;i<bigArray.size();i++) { //大目標から削除
+							if(alogbean.getId() == bigArray.get(i).getId()) {
+								bigArray.remove(i);
+							}
 						}
+						
+						for(int i=0;i<middleArray.size();i++) { //大目標下の中目標を保留に
+							if(alogbean.getId() == middleArray.get(i).getBig()) {
+								middleArray.get(i).setBig(0);
+								middleArray.get(i).setBig_title("");
+								middleArray.get(i).setHold(true);
+							}
+						}
+						
+						for(int i=0;i<smallArray.size();i++) { //大目標下の小目標を保留に
+							if(alogbean.getId() == smallArray.get(i).getBig()) {
+								smallArray.get(i).setBig(0);
+								smallArray.get(i).setBig_title("");
+								smallArray.get(i).setMiddle(0);
+								smallArray.get(i).setMiddle_title("");
+								smallArray.get(i).setHold(true);
+							}
+						}
+						
+						smallArray.add(rabean); //小目標へ追加
+						
+					
+						
+					}else if(alogbean.getBefore_level().equals("middle")) { //中目標から小目標へ移動
+						for(int i=0;i<middleArray.size();i++) {
+							if(alogbean.getId() == middleArray.get(i).getId()) { //中目標から削除
+								middleArray.remove(i);
+								break;
+							}
+							
+						}
+						
+						for(int i=0;i<smallArray.size();i++) { //中目標下の小目標を保留に
+							if(alogbean.getId() == smallArray.get(i).getMiddle()) {
+								smallArray.get(i).setBig(0);
+								smallArray.get(i).setBig_title("");
+								smallArray.get(i).setMiddle(0);
+								smallArray.get(i).setMiddle_title("");
+								smallArray.get(i).setHold(true);
+							}
+						}
+						smallArray.add(rabean); //小目標へ追加
+						
+					
+						
+					}else if(alogbean.getBefore_level().equals("small")) { //小目標から小目標への移動時
+
+						for(int i=0;i<smallArray.size();i++) {
+							if(alogbean.getId() == smallArray.get(i).getId()) {
+								//セッションの小目標データを編集
+								smallArray.get(i).setTitle(alogbean.getAfter_title());
+								smallArray.get(i).setContent(alogbean.getAfter_content());
+								smallArray.get(i).setBig(rabean.getBig());
+								smallArray.get(i).setBig_title(rabean.getBig_title());
+								smallArray.get(i).setMiddle(rabean.getMiddle());
+								smallArray.get(i).setMiddle_title(rabean.getMiddle_title());
+								smallArray.get(i).setHold(rabean.isHold());
+								break;
+							}
+						}
+					}else if(alogbean.getBefore_level().equals("sche")) { //スケジュールから小目標へ移動
+						
+						@SuppressWarnings("unchecked")
+						ArrayList<PlanBean> todayArray = (ArrayList<PlanBean>) session.getAttribute("todayarray");
+						
+						
+						for(int i=0;i<todayArray.size();i++) { //当日のスケジュールから削除
+							if(alogbean.getId() == todayArray.get(i).getId()) {
+								todayArray.remove(i);
+								break;
+							}
+						}
+						session.setAttribute("todayarray", todayArray);
+						
+						for(int i=0;i<scheArray.size();i++) { 
+							if(alogbean.getId() == scheArray.get(i).getId()) {
+								scheArray.remove(i); //スケジュールから削除
+								break;
+							}
+						}
+						smallArray.add(rabean); //小目標に追加
+					
+						
 					}
 					
 					
+					
 				}else if(alogbean.getAfter_level().equals("sche")) {
+
 					Calendar cal = Calendar.getInstance();
 					if(
 						Integer.parseInt(rabean.getDate().substring(0,4))  == cal.get(Calendar.YEAR) &&
@@ -571,7 +990,6 @@ public class resetController extends HttpServlet {
 						ArrayList<PlanBean> todayArray = (ArrayList<PlanBean>) session.getAttribute("todayarray");
 						
 						boolean todaycheck = false;
-						
 						for(int i=0;i<todayArray.size();i++) { //当日の情報変更
 							if(alogbean.getId() == todayArray.get(i).getId()) {
 								todayArray.get(i).setTitle(alogbean.getAfter_title());
@@ -584,26 +1002,18 @@ public class resetController extends HttpServlet {
 								break;
 							}
 						}
-						
-						for(int i=0;i<scheArray.size();i++) {
-							if(alogbean.getId() == scheArray.get(i).getId()) {
-								//セッションにスケジュール情報を設定
-								scheArray.get(i).setTitle(alogbean.getAfter_title());
-								scheArray.get(i).setContent(alogbean.getAfter_content());
-								scheArray.get(i).setDate(rabean.getDate());
-								scheArray.get(i).setHold(alogbean.getHold());
-								if(!todaycheck){
-									PlanBean tbean = new PlanBean();
-									tbean.setTitle(alogbean.getAfter_title());
-									tbean.setContent(alogbean.getAfter_content());
-									tbean.setDate(rabean.getDate());
-									tbean.setHold(alogbean.getHold());
-									todayArray.add(tbean);
-									session.setAttribute("todayarray", todayArray);
-								}
-								break;
-							}
+						if(!todaycheck){//別のスケジュールから当日に移動するときは追加
+							PlanBean tbean = new PlanBean();
+							tbean.setId(alogbean.getId());
+							tbean.setLevel("sche");
+							tbean.setTitle(alogbean.getAfter_title());
+							tbean.setContent(alogbean.getAfter_content());
+							tbean.setDate(rabean.getDate());
+							tbean.setHold(alogbean.getHold());
+							todayArray.add(tbean);
+							session.setAttribute("todayarray", todayArray);
 						}
+						
 						
 					}else { //当日以降のスケジュールのセッション情報
 						@SuppressWarnings("unchecked")
@@ -615,17 +1025,82 @@ public class resetController extends HttpServlet {
 							}
 						}
 						
+					}
+					
+					if(alogbean.getBefore_level().equals("big")) { //大目標からスケジュールへ移動
+						for(int i=0;i<bigArray.size();i++) {
+							if(alogbean.getId() == bigArray.get(i).getId()) {
+								bigArray.remove(i); //大目標から削除
+								break;
+							}
+						}
+						scheArray.add(rabean); //スケジュールに追加
+						
+
+						for(int i=0;i<middleArray.size();i++) { //大目標下の中目標を保留に
+							if(alogbean.getId() == middleArray.get(i).getBig()) {
+								middleArray.get(i).setBig(0);
+								middleArray.get(i).setBig_title("");
+								middleArray.get(i).setHold(true);
+							}
+						}
+						
+						for(int i=0;i<smallArray.size();i++) { //大目標下の小目標を保留に
+							if(alogbean.getId() == smallArray.get(i).getBig()) {
+								smallArray.get(i).setBig(0);
+								smallArray.get(i).setBig_title("");
+								smallArray.get(i).setMiddle(0);
+								smallArray.get(i).setMiddle_title("");
+								smallArray.get(i).setHold(true);
+							}
+						}
+						
+					
+						
+					}else if(alogbean.getBefore_level().equals("middle")) { //中目標からスケジュールへ移動
+						for(int i=0;i<middleArray.size();i++) {
+							if(alogbean.getId() == middleArray.get(i).getId()) {
+								middleArray.remove(i); //中目標から削除
+							}
+						}
+						scheArray.add(rabean); //スケジュールに追加
+						
+
+						for(int i=0;i<smallArray.size();i++) { //中目標下の小目標を保留に
+							if(alogbean.getId() == smallArray.get(i).getMiddle()) {
+								smallArray.get(i).setBig(0);
+								smallArray.get(i).setBig_title("");
+								smallArray.get(i).setMiddle(0);
+								smallArray.get(i).setMiddle_title("");
+								smallArray.get(i).setHold(true);
+							}
+						}
+					
+						
+					}else if(alogbean.getBefore_level().equals("small")) { //小目標からスケジュールへ移動
+						for(int i=0;i<smallArray.size();i++) {
+							if(alogbean.getId() == smallArray.get(i).getId()) {
+								smallArray.remove(i); //小目標から削除
+							}
+						}
+						scheArray.add(rabean); //スケジュールに追加
+					
+						
+					}else if(alogbean.getBefore_level().equals("sche")) {
 						for(int i=0;i<scheArray.size();i++) {
 							if(alogbean.getId() == scheArray.get(i).getId()) {
+								//セッションにスケジュール情報を設定
 								scheArray.get(i).setTitle(alogbean.getAfter_title());
 								scheArray.get(i).setContent(alogbean.getAfter_content());
 								scheArray.get(i).setDate(rabean.getDate());
 								scheArray.get(i).setHold(alogbean.getHold());
+								
 								break;
 							}
 						}
-						
 					}
+					
+					
 					
 					
 				}

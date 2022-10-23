@@ -5,6 +5,7 @@ import java.io.Serializable;
 public class LogBean implements Serializable{
 	private int logid;
 	private int id;
+	private Boolean beforehold;
 	private Boolean hold;
 	private String ope;
 	private String before_title;
@@ -28,6 +29,12 @@ public class LogBean implements Serializable{
 	
 	
 	
+	public Boolean getBeforehold() {
+		return beforehold;
+	}
+	public void setBeforehold(Boolean beforehold) {
+		this.beforehold = beforehold;
+	}
 	public Boolean getHold() {
 		return hold;
 	}

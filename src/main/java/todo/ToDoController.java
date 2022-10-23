@@ -63,18 +63,13 @@ public class ToDoController extends HttpServlet {
 			pbean.setContent(content);
 			logbean.setAfter_content(content);
 			
-			//保留状態にチェックが入っていたらholdをtrueに
-			if(request.getParameterValues("hold").length==1) {
-				if(request.getParameterValues("hold")[0].equals("on")) {
-				pbean.setHold(true);
-				logbean.setHold(true);
-				}
-					
-			}else {
+			if(request.getParameter("hold")==null) { //チェックなしなら保留しない
 				pbean.setHold(false);
 				logbean.setHold(false);
+			}else if(request.getParameter("hold").equals("on")) {//チェックが入っていたら保留ページへ
+				pbean.setHold(true);
+				logbean.setHold(true);		
 			}
-			
 			//セッションを取得
 			HttpSession session = request.getSession();
 			LoginBean lbean = (LoginBean) session.getAttribute("loginbean");

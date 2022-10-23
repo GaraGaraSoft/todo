@@ -52,8 +52,6 @@ public class LoginController extends HttpServlet {
 				//ログイン成功時、セッションにログインデータを登録
 				HttpSession session = request.getSession();
 				session.setAttribute("loginbean", lbean);
-				//ログインユーザのTODOリストデータ一覧を読み込む
-				ToDoBean tdbean = new ToDoBean();
 				//ユーザー用のデータテーブルを確認、無かったら作成
 				SQLOperator.checkTable(lbean.getUserid());
 				
@@ -64,7 +62,7 @@ public class LoginController extends HttpServlet {
 				ArrayList<PlanBean> weekArray = new ArrayList<>(); //データ一覧から一週間のスケジュール配列
 				ArrayList<PlanBean> scheArray = new ArrayList<>(); //データ一覧からスケジュール配列
 				ArrayList<LogBean> logArray = new ArrayList<>(); //データ一覧から変更ログ配列
-				SQLOperator.getList(bigArray,middleArray,smallArray,todayArray,weekArray,scheArray,tdbean,lbean.getUserid()); //テーブルから情報を取得して設定
+				SQLOperator.getList(bigArray,middleArray,smallArray,todayArray,weekArray,scheArray,lbean.getUserid()); //テーブルから情報を取得して設定
 				SQLOperator.getLog(bigArray,middleArray,logArray,lbean.getUserid());//ログから情報を取得して設定
 				//セッションに各データを登録
 				session.setAttribute("bigarray", bigArray);
@@ -73,14 +71,9 @@ public class LoginController extends HttpServlet {
 				session.setAttribute("todayarray",todayArray);
 				session.setAttribute("weekarray", weekArray);
 				session.setAttribute("schearray", scheArray);
-				session.setAttribute("tdbean", tdbean);
 				session.setAttribute("logarray", logArray);
-
-				System.out.println("WEEK:"+weekArray.size());
-				for(int i=0;i<logArray.size();i++) {
-					System.out.println("ログ:"+logArray.get(i).getId());
-				}
-				System.out.println("ちぇーっく");
+				
+				
 				//トップ画面にフォワード処理
 				ServletContext application = getServletContext();
 				RequestDispatcher rd = application.getRequestDispatcher("/jsp/top.jsp");

@@ -17,18 +17,21 @@
     pageContext.setAttribute("d",d);
 	if(request.getParameter("id")!=null){
 	    int id =  Integer.parseInt(request.getParameter("id"));
-	    String level = request.getParameter("level");
-    	@SuppressWarnings("unchecked")
-		ArrayList<PlanBean> smallArray = (ArrayList<PlanBean>) session.getAttribute("smallarray");
-   	 	if(level.equals("small")){
-    		for(PlanBean small:smallArray){
-    			if(id == small.getId()){
-    				request.setAttribute("nbean", small);
-    				break;
- 	   			}
-    		}
-    	
-    	}
+	    String level;
+	    if(request.getParameter("level")!=null){
+		    level = request.getParameter("level");
+	    	@SuppressWarnings("unchecked")
+			ArrayList<PlanBean> smallArray = (ArrayList<PlanBean>) session.getAttribute("smallarray");
+	   	 	if(level.equals("small")){
+	    		for(PlanBean small:smallArray){
+	    			if(id == small.getId()){
+	    				request.setAttribute("nbean", small);
+	    				break;
+	 	   			}
+	    		}
+	    	
+	    	}
+	    }
     }
 	@SuppressWarnings("unchecked")
 	List<LogBean> logs = (ArrayList<LogBean>) session.getAttribute("logarray");
@@ -99,10 +102,9 @@ if(e==1){
 <c:choose>
 <c:when test="${ smalls.hold == true}"></c:when>
 <c:otherwise>
-・<c:out value="(${ smalls.big_title })-(${ smalls.middle_title })-"/><a href="/ToDo/jsp/top.jsp?id=${ smalls.id }&level=small"><c:out value="${ smalls.title }"/></a> <a href="/ToDo/jsp/edit.jsp?id=${ smalls.id }&level=${ smalls.level }">edit</a> <a href="/ToDo/EditController?id=${ smalls.id }&level=${ smalls.level }&action=del">del</a>
+・<c:out value="(${ smalls.big_title })-(${ smalls.middle_title })-"/><a href="/ToDo/jsp/top.jsp?id=${ smalls.id }&level=small"><c:out value="${ smalls.title }"/></a> <a href="/ToDo/jsp/edit.jsp?id=${ smalls.id }&level=${ smalls.level }">edit</a> <a href="/ToDo/EditController?id=${ smalls.id }&level=${ smalls.level }&action=del">del</a><br/>
 </c:otherwise>
 </c:choose>
-<br/>
 </c:forEach>
 </td></tr>
 </table>
@@ -113,7 +115,11 @@ if(e==1){
 </table>
 </div>
 <div id="right">
-<div id="setting"><h5>[<a href="/ToDo/jsp/hold.jsp">保留状態</a>]</h5></div>
+<div id="setting">
+<form action="/ToDo/RenewController" method="post" >
+<input type="submit" value="目標・スケジュール再取得"/></form><br/>
+<button onclick="location.href='/ToDo/jsp/hold.jsp'">保留状態</button>
+</div>
 <table border=1 id="target">
 <tr><th>大目標</th></tr>
 <tr><td>
@@ -221,41 +227,84 @@ if(e==1){
 <c:forEach var="rlog" items="${ rlogarray }" begin="0" end="9" step="1"><tr><td>
 ・<c:choose>
 <c:when test="${ (rlog.ope == 'insert') && (rlog.after_level == 'big') }">
-<c:out value="[大目標]に[${ rlog.after_title }]を登録しました。"/>
+<c:out value="[大目標]に[${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>を登録しました。
 </c:when>
 <c:when test="${ (rlog.ope == 'insert') && (rlog.after_level == 'middle') }">
-<c:out value="[中目標]に[${ rlog.after_title }-(${ rlog.after_big_title })]を登録しました。"/>
+<c:out value="[中目標]に[(${ rlog.after_big_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>を登録しました。
 </c:when>
 <c:when test="${ (rlog.ope == 'insert') && (rlog.after_level == 'small') }">
-<c:out value="[小目標]に[${ rlog.after_title }-(${ rlog.after_big_title })-(${ rlog.after_middle_title })]を登録しました。"/>
+<c:out value="[小目標]に[(${ rlog.after_big_title })-(${ rlog.after_middle_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>を登録しました。
 </c:when>
 <c:when test="${ (rlog.ope == 'insert') && (rlog.after_level == 'sche') }">
-<c:out value="[スケジュール]に[${ rlog.after_title }(${ rlog.after_date })]を登録しました。"/>
+<c:out value="[スケジュール]に[${ rlog.after_title }(${ rlog.after_date })]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>を登録しました。
 </c:when>
 <c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'big') }">
-<c:out value="[大目標]の[${ rlog.before_title }]を削除しました。"/>
+<c:out value="[大目標]の[${ rlog.before_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>を削除しました。
 </c:when>
 <c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'middle') }">
-<c:out value="[中目標]の[${ rlog.before_title }-(${ rlog.before_big_title })]を削除しました。"/>
+<c:out value="[中目標]の[(${ rlog.before_big_title })-${ rlog.before_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>を削除しました。
 </c:when>
 <c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'small') }">
-<c:out value="[小目標]の[${ rlog.before_title }-(${ rlog.before_big_title })-(${ rlog.before_middle_title })]を削除しました。"/>
+<c:out value="[小目標]の[(${ rlog.before_big_title })-(${ rlog.before_middle_title })-${ rlog.before_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>を削除しました。
 </c:when>
 <c:when test="${ (rlog.ope == 'delete') && (rlog.before_level == 'sche') }">
-<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]を削除しました。"/>
+<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>を削除しました。
 </c:when>
-<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'big') }">
-<c:out value="[大目標]の[${ rlog.before_title }]を[${ rlog.after_title }]に変更しました。"/>
+
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'small') && (rlog.after_level == 'small') }">
+<c:out value="[小目標]の[(${ rlog.before_big_title })-(${ rlog.before_middle_title })-${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[小目標]の[(${ rlog.after_big_title })-(${ rlog.after_middle_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
 </c:when>
-<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'middle') }">
-<c:out value="[中目標]の[${ rlog.before_title }-(${ rlog.before_big_title })]を[${ rlog.after_title }-(${ rlog.after_big_title })]に変更しました。"/>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'small') && (rlog.after_level == 'middle') }">
+<c:out value="[小目標]の[(${ rlog.before_big_title })-(${ rlog.before_middle_title })-${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[中目標]の[(${ rlog.after_big_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
 </c:when>
-<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'small') }">
-<c:out value="[小目標]の[${ rlog.before_title }-(${ rlog.before_big_title })-(${ rlog.before_middle_title })]を[${ rlog.after_title }-(${ rlog.after_big_title })-(${ rlog.after_middle_title })]に変更しました。"/>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'small') && (rlog.after_level == 'big') }">
+<c:out value="[小目標]の[(${ rlog.before_big_title })-(${ rlog.before_middle_title })-${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[大目標]の[${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
 </c:when>
-<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'sche') }">
-<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]を[${ rlog.after_title }(${ rlog.after_date })]に変更しました。"/>
-</c:when></c:choose>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'small') && (rlog.after_level == 'sche') }">
+<c:out value="[小目標]の[(${ rlog.before_big_title })-(${ rlog.before_middle_title })-${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[スケジュール]の[${ rlog.after_title }(${ rlog.after_date })]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'middle')  && ( rlog.after_level == 'small')}">
+<c:out value="[中目標]の[(${ rlog.before_big_title })-${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[小目標]の[(${ rlog.after_big_title })-(${ rlog.after_middle_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'middle')  && ( rlog.after_level == 'middle')}">
+<c:out value="[中目標]の[(${ rlog.before_big_title })-${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[中目標]の[(${ rlog.after_big_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'middle')  && ( rlog.after_level == 'big')}">
+<c:out value="[中目標]の[(${ rlog.before_big_title })-${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[大目標]の[${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'middle')  && ( rlog.after_level == 'sche')}">
+<c:out value="[中目標]の[(${ rlog.before_big_title })-${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[スケジュール]の[${ rlog.after_title }(${ rlog.after_date })]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'big')  && (rlog.after_level == 'small')}">
+<c:out value="[大目標]の[${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[小目標]の[(${ rlog.after_big_title })-(${ rlog.after_middle_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'big')  && (rlog.after_level == 'middle')}">
+<c:out value="[大目標]の[${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[中目標]の[(${ rlog.after_big_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'big')  && (rlog.after_level == 'big')}">
+<c:out value="[大目標]の[${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[大目標]の[${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'big')  && (rlog.after_level == 'sche')}">
+<c:out value="[大目標]の[${ rlog.before_title }]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[スケジュール]の[${ rlog.after_title }(${ rlog.after_date })]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+
+
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'sche')  && (rlog.after_level == 'small')}">
+<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[小目標]の[(${ rlog.after_big_title })-(${ rlog.after_middle_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'sche')  && (rlog.after_level == 'middle')}">
+<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[中目標]の[(${ rlog.after_big_title })-${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'sche')  && (rlog.after_level == 'big')}">
+<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[大目標]の[${ rlog.after_title }]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+<c:when test="${ (rlog.ope == 'update') && (rlog.before_level == 'sche')  && (rlog.after_level == 'sche')}">
+<c:out value="[スケジュール]の[${ rlog.before_title }(${ rlog.before_date })]"/><c:if test="${ rlog.beforehold == true }">(保留)</c:if>を<c:out value="[スケジュール]の[${ rlog.after_title }(${ rlog.after_date })]"/><c:if test="${ rlog.hold == true }">(保留)</c:if>に変更しました。
+</c:when>
+
+</c:choose>
 </td>
 <td class="reset"><form action="/ToDo/resetController" method="post" name="rform">
 <input type="hidden" name="logid" value="${ rlog.logid }">

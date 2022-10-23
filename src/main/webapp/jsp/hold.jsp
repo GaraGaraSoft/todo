@@ -12,56 +12,52 @@
 
 <div id="log">
 <table border="1" id="logs">
-<tr><th colspan="2">大目標</th></tr>
+<tr><th colspan="3">大目標</th></tr>
 <c:forEach var="big" items="${ bigarray }">
 <c:choose>
 <c:when test="${ big.hold == true }"><tr><td>
 ・<c:out value="${ big.title }"/>
 </td>
-<td class="reset"><form action="/ToDo/holdController" method="post" name="rform">
-<input type="hidden" name="logid" value="${ big.id }">
-<input type="submit" value="変更"/></form>
-</td></tr>
+<td class="reset"><a href="/ToDo/jsp/edit.jsp?id=${ big.id }&level=${ big.level }&hold=on">edit</a></td>
+<td><a href="/ToDo/EditController?id=${ big.id }&level=${ big.level }&action=del">del</a></td>
+</tr>
 </c:when>
 </c:choose>
 </c:forEach>
 
-<tr><th colspan="2">中目標</th></tr>
+<tr><th colspan="3">中目標</th></tr>
 <c:forEach var="middle" items="${ middlearray }">
 <c:choose>
 <c:when test="${ middle.hold == true }"><tr><td>
 ・<c:out value="${ middle.title }"/>
 </td>
-<td class="reset"><form action="/ToDo/holdController" method="post" name="rform">
-<input type="hidden" name="logid" value="${ middle.id }">
-<input type="submit" value="変更"/></form>
+<td class="reset"><a href="/ToDo/jsp/edit.jsp?id=${ middle.id }&level=${ middle.level }&hold=on">edit</a></td>
+<td><a href="/ToDo/EditController?id=${ middle.id }&level=${ middle.level }&action=del">del</a>
 </td></tr></c:when>
 </c:choose>
 </c:forEach>
 
-<tr><th colspan="2">小目標</th></tr>
+<tr><th colspan="3">小目標</th></tr>
 <c:forEach var="small" items="${ smallarray }">
 <c:choose>
 <c:when test="${ small.hold == true }"><tr><td>
 ・<c:out value="${ small.title }"/>
 </td>
-<td class="reset"><form action="/ToDo/holdController" method="post" name="rform">
-<input type="hidden" name="logid" value="${ small.id }">
-<input type="submit" value="変更"/></form>
-</td></tr></c:when>
+<td class="reset"><a href="/ToDo/jsp/edit.jsp?id=${ small.id }&level=${ small.level }&hold=on">edit</a></td>
+<td><a href="/ToDo/EditController?id=${ small.id }&level=${ small.level }&action=del">del</a></td></tr>
+</c:when>
 </c:choose>
 </c:forEach>
 
-<tr><th colspan="2">スケジュール</th></tr>
+<tr><th colspan="3">スケジュール</th></tr>
 <c:forEach var="sche" items="${ schearray }">
 <c:choose>
 <c:when test="${ sche.hold == true }"><tr><td>
 ・<c:out value="${ sche.title }"/>
 </td>
-<td class="reset"><form action="/ToDo/holdController" method="post" name="rform">
-<input type="hidden" name="logid" value="${ sche.id }">
-<input type="submit" value="変更"/></form>
-</td></tr></c:when>
+<td class="reset"><a href="/ToDo/jsp/edit.jsp?id=${ sche.id }&level=${ sche.level }&hold=on">edit</a></td>
+<td><a href="/ToDo/EditController?id=${ sche.id }&level=${ sche.level }&action=del">del</a></td>
+</tr></c:when>
 </c:choose>
 </c:forEach>
 
